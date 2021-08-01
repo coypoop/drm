@@ -721,6 +721,8 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 		return;
 	for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
 		page = obj->mm.pages->sgl->sg_pgs[i];
+		if (page == NULL)
+			continue;
 		vm_page = &page->p_vmp;
 		pmap_page_protect(vm_page, VM_PROT_NONE);
 	}
