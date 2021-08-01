@@ -739,7 +739,6 @@ gen8_alloc_top_pd(struct i915_address_space *vm)
 
 	if (unlikely(setup_page_dma(vm, px_base(pd)))) {
 		spin_lock_destroy(&pd->lock);
-		printf("%s: kfree pd=%p\n", __func__, pd);
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
