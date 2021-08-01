@@ -37,6 +37,7 @@ struct i915_page_directory *__alloc_pd(size_t sz)
 	struct i915_page_directory *pd;
 
 	pd = kzalloc(sz, I915_GFP_ALLOW_FAIL);
+	printf("%s: alloc pd=%p\n", __func__, pd);
 	if (unlikely(!pd))
 		return NULL;
 
@@ -54,6 +55,7 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 
 	if (unlikely(setup_page_dma(vm, px_base(pd)))) {
 		spin_lock_destroy(&pd->lock);
+		printf("%s: free pd=%p\n", __func__, pd);
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -64,6 +66,7 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 void free_pd(struct i915_address_space *vm, struct i915_page_dma *pd)
 {
 	cleanup_page_dma(vm, pd);
+	printf("%s: free pd=%p\n", __func__, pd);
 	kfree(pd);
 }
 
