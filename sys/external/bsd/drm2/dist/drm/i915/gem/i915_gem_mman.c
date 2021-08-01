@@ -720,10 +720,9 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 	if (obj->mm.pages == NULL)
 		return;
 	for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
-		printf("%s: obj=%p ops=%p pages=%p\n", __func__, obj,
-		    obj->ops, obj->mm.pages);
-		printf("%s: obj=%p sg_pgs=%p sg_npgs=%zu\n", __func__, obj,
-		    obj->mm.pages->sgl->sg_pgs,
+		printf("%s: obj=%p ops=%p\n", __func__, obj, obj->ops);
+		printf("%s: obj=%p pages=%p sg_pgs=%p sg_npgs=%zu\n",
+		    __func__, obj, obj->mm.pages, obj->mm.pages->sgl->sg_pgs,
 		    (size_t)obj->mm.pages->sgl->sg_npgs);
 		page = obj->mm.pages->sgl->sg_pgs[i];
 		if (page == NULL)
