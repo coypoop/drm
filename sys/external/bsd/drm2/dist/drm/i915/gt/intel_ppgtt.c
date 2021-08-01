@@ -63,12 +63,10 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 	return pd;
 }
 
-#include <ddb/ddb.h>
 void free_pd(struct i915_address_space *vm, struct i915_page_dma *pd)
 {
 	cleanup_page_dma(vm, pd);
 	printf("%s: free pd=%p\n", __func__, pd);
-	db_stacktrace();
 	kfree(pd);
 }
 
