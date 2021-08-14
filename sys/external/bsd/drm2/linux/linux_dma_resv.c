@@ -1043,6 +1043,8 @@ top:	KASSERT(fence == NULL);
 		if (!dma_resv_read_valid(robj, &ticket))
 			goto restart;
 	}
+	if (shared_count)
+		goto out;
 
 	/* If there is an exclusive fence, test it.  */
 	KASSERT(fence == NULL);
@@ -1130,6 +1132,8 @@ top:	KASSERT(fence == NULL);
 		if (!dma_resv_read_valid(robj, &ticket))
 			goto restart;
 	}
+	if (shared_count)
+		goto out;
 
 	/* If there is an exclusive fence, test it.  */
 	KASSERT(fence == NULL);
@@ -1143,7 +1147,7 @@ top:	KASSERT(fence == NULL);
 		fence = NULL;
 	}
 
-	/* Success!  Return the number of ticks left.  */
+out:	/* Success!  Return the number of ticks left.  */
 	rcu_read_unlock();
 	KASSERT(fence == NULL);
 	return timeout;
