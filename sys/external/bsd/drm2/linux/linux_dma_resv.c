@@ -535,7 +535,8 @@ dma_resv_get_excl_reader(const struct dma_resv *robj,
 	 * read section, give up.  Otherwise, take a reference so it
 	 * won't go away until after dma_fence_put.
 	 */
-	if ((fence = dma_fence_get_rcu(fence)) == NULL)
+	if (fence != NULL &&
+	    (fence = dma_fence_get_rcu(fence)) == NULL)
 		goto fail;
 
 	/* Success!  */
