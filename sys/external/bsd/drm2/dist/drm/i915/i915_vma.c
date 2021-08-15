@@ -189,6 +189,9 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (view && view->type != I915_GGTT_VIEW_NORMAL) {
 		vma->ggtt_view = *view;
 		if (view->type == I915_GGTT_VIEW_PARTIAL) {
+			KASSERTMSG(!range_overflows_t(u64, view->partial.offset, view->partial.size, obj->base.size >> PAGE_SHIFT),
+			    "partial.offset=%zu pgs, partial.size=%zu pgs, obj.size=%zu bytes",
+			    (size_t)view->partial.offset, (size_t)view->partial.size, (size_t)obj->base.size);
 			GEM_BUG_ON(range_overflows_t(u64,
 						     view->partial.offset,
 						     view->partial.size,
