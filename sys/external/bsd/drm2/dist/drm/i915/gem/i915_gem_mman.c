@@ -340,8 +340,6 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	paddr_t paddr;
 	int i;
 
-	startpage -= drm_vma_node_start(&mmo->vma_node);
-
 	for (i = 0; i < npages; i++) {
 		if ((flags & PGO_ALLPAGES) == 0 && i != centeridx)
 			continue;
@@ -413,7 +411,6 @@ static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
 #ifdef __NetBSD__
 	page_offset = (ufi->entry->offset + (vaddr - ufi->entry->start))
 	    >> PAGE_SHIFT;
-	page_offset -= drm_vma_node_start(&mmo->vma_node);
 #else
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = (vmf->address - area->vm_start) >> PAGE_SHIFT;
