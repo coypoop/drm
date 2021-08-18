@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD: drm_sysfs.c,v 1.4 2018/08/27 07:00:09 riastradh Exp $");
 
+#include <drm/drm_device.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_sysfs.h>
 
