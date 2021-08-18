@@ -348,6 +348,10 @@ static void drm_master_destroy(struct kref *kref)
 	idr_destroy(&master->leases);
 	idr_destroy(&master->lessee_idr);
 
+	/* XXX drm_master_legacy_init unwind */
+	DRM_DESTROY_WAITQUEUE(&master->lock.lock_queue);
+	spin_lock_destroy(&master->lock.spinlock);
+
 	kfree(master->unique);
 	kfree(master);
 }
