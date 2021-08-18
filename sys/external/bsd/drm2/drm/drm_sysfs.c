@@ -39,6 +39,7 @@ __KERNEL_RCSID(0, "$NetBSD: drm_sysfs.c,v 1.4 2018/08/27 07:00:09 riastradh Exp 
 int
 drm_sysfs_connector_add(struct drm_connector *connector)
 {
+	connector->kdev = dev->dev; /* XXX */
 	return 0;
 }
 
