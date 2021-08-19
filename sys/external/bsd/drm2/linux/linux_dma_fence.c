@@ -1019,8 +1019,12 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, long timeout)
 	KASSERT(ret != -ERESTART); /* would be confused with time left */
 
 	/* Check again in case it was signalled after a wait.  */
-	if (fence->flags & (1u << DMA_FENCE_FLAG_SIGNALED_BIT))
-		ret = MAX(1, deadline - now);
+	if (fence->flags & (1u << DMA_FENCE_FLAG_SIGNALED_BIT)) {
+		if (timeout < MAX_SCHEDULE_TIMEOUT)
+			ret = MAX(1, deadline - now);
+		else
+			ret = MAX_SCHEDULE_TIMEOUT;
+	}
 
 out:	/* All done.  Release the lock.  */
 	spin_unlock(fence->lock);
