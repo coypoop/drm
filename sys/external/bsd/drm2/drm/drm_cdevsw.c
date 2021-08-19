@@ -97,7 +97,8 @@ const struct cdevsw drm_cdevsw = {
 	.d_kqfilter = nokqfilter,
 	.d_discard = nodiscard,
 	/* XXX was D_TTY | D_NEGOFFSAFE */
-	.d_flag = D_MPSAFE|D_NEGOFFSAFE,
+	/* XXX Add D_MPSAFE some day... */
+	.d_flag = D_NEGOFFSAFE,
 };
 
 const struct fileops drm_fileops = {
