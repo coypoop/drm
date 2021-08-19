@@ -588,7 +588,7 @@ int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 			 * equivalent to having a master set?
 			 *
 			 * XXX There is copypasta of this in
-			 * drm_fops.c.
+			 * drm_lock.c, drm_legacy_lock_master_cleanup.
 			 */
 			BUG_ON(master->lock.hw_lock == NULL);
 			if (dev->sigdata.lock == master->lock.hw_lock)

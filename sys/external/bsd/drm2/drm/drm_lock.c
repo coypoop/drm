@@ -220,7 +220,31 @@ out1:	spin_unlock(&master->lock.spinlock);
 out0:	mutex_lock(&drm_global_mutex);
 	return error;
 }
-#endif
+
+void
+drm_legacy_lock_master_cleanup(struct drm_device *dev,
+    struct drm_master *master)
+{
+
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
+		return;
+
+	/*
+	 * XXX Synchronize with _DRM_SHM case of
+	 * drm_legacy_rmmap_locked in drm_bufs.c.
+	 */
+	spin_lock(&master->lock.spinlock);
+	if (master->lock.hw_lock) {
+		if (dev->sigdata.lock == master->lock.hw_lock)
+			dev->sigdata.lock = NULL;
+		master->lock.hw_lock = NULL;
+		master->lock.file_priv = NULL;
+		DRM_SPIN_WAKEUP_ALL(&master->lock.lock_queue,
+		    &master->lock.spinlock);
+	}
+	spin_unlock(&master->lock.spinlock);
+}
+#endif	/* CONFIG_DRM_LEGACY */
 
 /*
  * Try to acquire the lock.  Whether or not we acquire it, guarantee
