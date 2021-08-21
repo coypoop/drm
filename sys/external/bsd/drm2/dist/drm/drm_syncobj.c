@@ -404,6 +404,8 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 			/* Check once more, then give up.  */
 			ret = 0;
 			timeout = 0;
+		} else {
+			KASSERT(ret == 0);
 		}
 	}
 	*fence = wait.fence;
@@ -1165,10 +1167,8 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			}
 		}
 
-		if (signaled_count == count) {
-			timeout = MAX(1, timeout);
+		if (signaled_count == count)
 			goto done_waiting;
-		}
 
 		if (timeout == 0) {
 			timeout = -ETIME;
@@ -1179,7 +1179,6 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 		mutex_spin_enter(&lock);
 		if (signalled) {
 			ret = 0;
-			timeout = MAX(1, timeout);
 		} else {
 			unsigned start, end;
 
@@ -1197,8 +1196,10 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			timeout = -ERESTARTSYS;
 			goto done_waiting;
 		} else if (ret == -EWOULDBLOCK) {
-			/* Poll fences once more, then then.  */
+			/* Poll fences once more, then exit.  */
 			timeout = 0;
+		} else {
+			KASSERT(ret == 0);
 		}
 #else
 		if (signal_pending(current)) {
