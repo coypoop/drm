@@ -162,48 +162,44 @@ wait_on_bit_timeout(const volatile unsigned long *bitmap, unsigned bit,
     int flags, unsigned long timeout)
 {
 	struct waitbitentry *wbe;
-	int error = 0;
+	int error, ret;
 
 	if (test_bit(bit, bitmap))
-		return MAX(1, MIN(timeout, INT_MAX/2));
+		return timeout;
 
 	wbe = wait_bit_enter(bitmap, bit);
 
 	while (!test_bit(bit, bitmap)) {
 		unsigned starttime, endtime;
 
-		/* If there's no time left, fail with EWOULDBLOCK.  */
-		if (timeout == 0) {
-			error = EWOULDBLOCK;
-			goto out;
-		}
-
-		starttime = getticks();
+		starttime = hardclock_ticks;
 		if (flags & TASK_UNINTERRUPTIBLE) {
 			error = cv_timedwait(&wbe->cv, &wbe->lock,
-			    MIN(timeout, INT_MAX/2));
+			    MIN(INT_MAX, timeout));
 		} else {
 			error = cv_timedwait_sig(&wbe->cv, &wbe->lock,
-			    MIN(timeout, INT_MAX/2));
+			    MIN(INT_MAX, timeout));
 		}
-		endtime = getticks();
+		endtime = hardclock_ticks;
 
-		/* If cv_timedwait failed, bail.  */
-		if (error)
+		/* If we timed out, return zero time left.  */
+		if (error == EWOULDBLOCK || endtime - starttime < timeout) {
+			ret = 0;
 			goto out;
+		}
+
+		/* If we were interrupted, return -ERESTARTSYS.  */
+		if (error == EINTR || error == ERESTART) {
+			ret = -ERESTARTSYS;
+			goto out;
+		}
 
 		/* Otherwise, debit the time spent.  */
-		timeout -= MIN(timeout, (endtime - starttime));
+		timeout -= (endtime - starttime);
 	}
-	KASSERT(error == 0);
+	/* Bit is set.  Return the time left.  */
+	ret = timeout;
 
 out:	wait_bit_exit(wbe);
-
-	if (error == EINTR || error == ERESTART) {
-		return -ERESTARTSYS;
-	} else if (error == EWOULDBLOCK) {
-		return 0;	/* zero time left */
-	} else {
-		return MAX(1, MIN(timeout, INT_MAX/2));
-	}
+	return ret;
 }
