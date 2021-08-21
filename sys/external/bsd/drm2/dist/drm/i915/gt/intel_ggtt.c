@@ -1599,6 +1599,10 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 	struct sg_table *st = NULL;
 	int ret = -ENOMEM;
 
+	printf("%s: offset=%zu size=%zu\n", __func__,
+	    (size_t)view->partial.offset,
+	    (size_t)view->partial.size);
+
 	KASSERTMSG(view->partial.offset <= obj->base.size >> PAGE_SHIFT,
 	    "obj=%p size=0x%zx; view offset=0x%zx size=0x%zx",
 	    obj,
@@ -1664,6 +1668,10 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 
 			KASSERT(iseg->ds_len % PAGE_SIZE == 0);
 
+			printf("%s: iseg[%u] = 0x%llx (0x%llx)\n", __func__, j,
+			    (unsigned long long)iseg->ds_addr,
+			    (unsigned long long)iseg->ds_len);
+
 			/* Skip segments prior to the start offset.  */
 			if (offset >= iseg->ds_len) {
 				offset -= iseg->ds_len;
@@ -1679,6 +1687,9 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 				oseg->ds_addr = iseg->ds_addr + offset +
 				    k*PAGE_SIZE;
 				oseg->ds_len = PAGE_SIZE;
+				printf("%s: oseg[%u] = 0x%llx (0x%llx)\n", __func__, i - 1,
+				    (unsigned long long)oseg->ds_addr,
+				    (unsigned long long)oseg->ds_len);
 			}
 
 			/*
