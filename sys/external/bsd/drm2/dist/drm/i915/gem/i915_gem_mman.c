@@ -919,8 +919,6 @@ __assign_mmap_offset(struct drm_file *file,
 
 	*offset = drm_vma_node_offset_addr(&mmo->vma_node);
 	err = 0;
-	printf("%s: type=%d offset=0x%zx\n", __func__, mmap_type,
-	    (size_t)*offset);
 out:
 	i915_gem_object_put(obj);
 	return err;
@@ -1064,9 +1062,6 @@ i915_gem_mmap_object(struct drm_device *dev, off_t byte_offset, size_t nbytes,
 	struct drm_vma_offset_node *node;
 	struct drm_i915_gem_object *obj = NULL;
 	struct i915_mmap_offset *mmo = NULL;
-
-	printf("%s: offset=0x%zx nbytes=%zu\n", __func__,
-	    (size_t)byte_offset, nbytes);
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
