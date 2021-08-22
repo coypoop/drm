@@ -238,10 +238,6 @@ compute_partial_view(const struct drm_i915_gem_object *obj,
 	/* If the partial covers the entire object, just create a normal VMA. */
 	if (chunk >= obj->base.size >> PAGE_SHIFT)
 		view.type = I915_GGTT_VIEW_NORMAL;
-	else
-		printf("%s: partial view offset=%zu size=%zu\n", __func__,
-		    (size_t)view.partial.offset,
-		    (size_t)view.partial.size);
 
 	return view;
 }
@@ -313,9 +309,6 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 #endif
 	resource_size_t iomap;
 	int err;
-
-	printf("%s: type=%d offset=%p npages=%d\n", __func__, mmo->mmap_type,
-	    (void *)ufi->entry->offset, npages);
 
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) && write))
@@ -407,9 +400,6 @@ static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
 	int srcu;
 	int ret;
 
-	printf("%s: type=%d offset=%p npages=%d\n", __func__, mmo->mmap_type,
-	    (void *)ufi->entry->offset, npages);
-
 	/* Sanity check that we allow writing into this object */
 	if (i915_gem_object_is_readonly(obj) && write)
 #ifdef __NetBSD__
@@ -462,9 +452,6 @@ static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
 		if (IS_ERR(vma)) {
 			flags = PIN_MAPPABLE;
 			view.type = I915_GGTT_VIEW_PARTIAL;
-			printf("%s: partial view offset=%zu size=%zu\n", __func__,
-			    (size_t)view.partial.offset,
-			    (size_t)view.partial.size);
 			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
 		}
 
