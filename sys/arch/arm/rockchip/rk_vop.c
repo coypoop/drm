@@ -561,6 +561,8 @@ rk_vop_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *state)
 
 	drm_crtc_vblank_on(crtc);
 	printf("%s: vblank on\n", __func__);
+
+	rk_vop_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
 static void
@@ -569,6 +571,8 @@ rk_vop_crtc_atomic_disable(struct drm_crtc *crtc, struct drm_crtc_state *state)
 	struct rk_vop_crtc *mixer_crtc = to_rk_vop_crtc(crtc);
 	struct rk_vop_softc * const sc = mixer_crtc->sc;
 	uint32_t val;
+
+	rk_vop_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	drm_crtc_vblank_off(crtc);
 	printf("%s: vblank off\n", __func__);
