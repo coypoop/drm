@@ -150,6 +150,8 @@ static inline void set_curcpl(int);
 static inline void cpu_dosoftints(void);
 #endif
 
+#include <sys/param.h>
+
 #ifdef _KMEMUSER
 #include <sys/intr.h>
 #endif
@@ -157,8 +159,6 @@ static inline void cpu_dosoftints(void);
 #include <sys/cpu_data.h>
 #include <sys/device_if.h>
 #include <sys/evcnt.h>
-
-#include <machine/param.h>
 
 /*
  * Cache info variables.
