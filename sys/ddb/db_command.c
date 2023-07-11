@@ -1401,7 +1401,7 @@ db_show_all_tstiles(db_expr_t addr, bool have_addr,
 			if (wchan == NULL)
 				goto next;
 			db_symstr(wchanname, sizeof(wchanname),
-			    (db_expr_t)wchan, DB_STGY_ANY);
+			    (db_expr_t)(uintptr_t)wchan, DB_STGY_ANY);
 			db_read_bytes((db_addr_t)&l->l_wmesg, sizeof(wmesg),
 			    (char *)&wmesg);
 			if (wmesg != NULL) {
@@ -1436,7 +1436,8 @@ db_show_all_tstiles(db_expr_t addr, bool have_addr,
 			    wchanname);
 
 			if (trace && owner != NULL) {
-				db_stack_trace_print((db_expr_t)owner,
+				db_stack_trace_print(
+				    (db_expr_t)(uintptr_t)owner,
 				    /*have_addr*/true, /*count*/-1,
 				    /*modif(lwp)*/"a", db_printf);
 			}
