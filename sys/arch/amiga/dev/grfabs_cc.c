@@ -44,6 +44,7 @@ __KERNEL_RCSID(0, "$NetBSD: grfabs_cc.c,v 1.37 2022/03/26 17:15:18 andvar Exp $"
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/queue.h>
+#include <sys/intr.h>
 
 #include <amiga/amiga/custom.h>
 #include <amiga/amiga/cc.h>
