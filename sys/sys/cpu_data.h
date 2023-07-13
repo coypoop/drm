@@ -44,6 +44,7 @@ struct lwp;
 #include <sys/queue.h>
 #include <sys/kcpuset.h>
 #include <sys/ipi.h>
+#include <sys/intr.h>
 
 /* Per-CPU counters.  New elements must be added in blocks of 8. */
 enum cpu_count {
