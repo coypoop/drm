@@ -7891,6 +7891,13 @@ iwm_attach(device_t parent, device_t self, void *aux)
 		sc->sc_device_family = IWM_DEVICE_FAMILY_8000;
 		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ_8000;
 		break;
+	case PCI_PRODUCT_INTEL_WIFI_LINK_9260:
+		sc->sc_fwname = "iwlwifi-9260-th-b0-jf-b0-46.ucode";
+		sc->host_interrupt_operation_mode = 0;
+		sc->apmg_wake_up_wa = 0;
+		sc->sc_device_family = IWM_DEVICE_FAMILY_9000;
+		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ_8000;
+		break;
 	default:
 		aprint_error_dev(self, "unknown product %#x",
 		    PCI_PRODUCT(sc->sc_pciid));
