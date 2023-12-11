@@ -7789,16 +7789,18 @@ iwm_attach(device_t parent, device_t self, void *aux)
 	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, 0x40);
 	pci_conf_write(sc->sc_pct, sc->sc_pcitag, 0x40, reg & ~0xff00);
 
+	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_BAR(0), 0xd0900000);
+
 	/* Enable bus-mastering */
 	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG);
-	reg |= PCI_COMMAND_MASTER_ENABLE;
+	reg |= PCI_COMMAND_MASTER_ENABLE | PCI_COMMAND_MEM_ENABLE;
 	pci_conf_write(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG, reg);
 
 	memtype = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 	err = pci_mapreg_map(pa, PCI_MAPREG_START, memtype, 0,
 	    &sc->sc_st, &sc->sc_sh, NULL, &sc->sc_sz);
 	if (err) {
-		aprint_error_dev(self, "can't map mem space\n");
+		aprint_error_dev(self, "can't map mem space err %d\n", err);
 		return;
 	}
 
