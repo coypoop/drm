@@ -249,10 +249,10 @@ static int	iwm_write_mem32(struct iwm_softc *, uint32_t, uint32_t);
 static int	iwm_poll_bit(struct iwm_softc *, int, uint32_t, uint32_t, int);
 static int	iwm_nic_lock(struct iwm_softc *);
 static void	iwm_nic_unlock(struct iwm_softc *);
-static void	iwm_set_bits_mask_prph(struct iwm_softc *, uint32_t, uint32_t,
+static int	iwm_set_bits_mask_prph(struct iwm_softc *, uint32_t, uint32_t,
 		    uint32_t);
-static void	iwm_set_bits_prph(struct iwm_softc *, uint32_t, uint32_t);
-static void	iwm_clear_bits_prph(struct iwm_softc *, uint32_t, uint32_t);
+static int	iwm_set_bits_prph(struct iwm_softc *, uint32_t, uint32_t);
+static int	iwm_clear_bits_prph(struct iwm_softc *, uint32_t, uint32_t);
 static int	iwm_dma_contig_alloc(bus_dma_tag_t, struct iwm_dma_info *,
 		    bus_size_t, bus_size_t);
 static void	iwm_dma_contig_free(struct iwm_dma_info *);
@@ -1089,31 +1089,32 @@ iwm_nic_unlock(struct iwm_softc *sc)
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
 
-static void
+static int
 iwm_set_bits_mask_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits,
     uint32_t mask)
 {
 	uint32_t val;
 
-	/* XXX: no error path? */
 	if (iwm_nic_lock(sc)) {
 		val = iwm_read_prph(sc, reg) & mask;
 		val |= bits;
 		iwm_write_prph(sc, reg, val);
 		iwm_nic_unlock(sc);
+		return 0;
 	}
+	return EBUSY;
 }
 
-static void
+static int
 iwm_set_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits)
 {
-	iwm_set_bits_mask_prph(sc, reg, bits, ~0);
+	return iwm_set_bits_mask_prph(sc, reg, bits, ~0);
 }
 
-static void
+static int
 iwm_clear_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits)
 {
-	iwm_set_bits_mask_prph(sc, reg, 0, ~bits);
+	return iwm_set_bits_mask_prph(sc, reg, 0, ~bits);
 }
 
 static int
