@@ -384,6 +384,7 @@ struct iwm_softc {
 	pcireg_t sc_pciid;
 	const void *sc_ih;
 	void *sc_soft_ih;
+	bool sc_msix;
 
 	/* TX scheduler rings. */
 	struct iwm_dma_info		sched_dma;
@@ -409,6 +410,7 @@ struct iwm_softc {
 	int sc_device_family;
 #define IWM_DEVICE_FAMILY_7000	1
 #define IWM_DEVICE_FAMILY_8000	2
+#define IWM_DEVICE_FAMILY_9000	3
 
 	struct iwm_dma_info kw_dma;
 	struct iwm_dma_info fw_dma;
@@ -429,6 +431,11 @@ struct iwm_softc {
 
 	int sc_intmask;
 	int sc_flags;
+
+	uint32_t sc_fh_init_mask;
+	uint32_t sc_hw_init_mask;
+	uint32_t sc_fh_mask;
+	uint32_t sc_hw_mask;
 
 	/*
 	 * So why do we need a separate stopped flag and a generation?
@@ -478,6 +485,8 @@ struct iwm_softc {
 
 	struct iwm_notif_statistics sc_stats;
 	int sc_noise;
+
+	int sc_mqrx_supported;
 
 	int sc_cmd_hold_nic_awake;
 
