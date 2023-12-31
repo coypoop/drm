@@ -526,6 +526,8 @@ enum iwm_secure_load_status_reg {
 #define IWM_AUX_MISC_MASTER1_SMPHR_STATUS	0xa20800
 #define IWM_RSA_ENABLE				0xa24b08
 #define IWM_PREG_AUX_BUS_WPROT_0		0xa04cc0
+#define IWM_PREG_PRPH_WPROT_9000		0xa04ce0
+#define IWM_PREG_PRPH_WPROT_22000		0xa04d00
 #define IWM_SB_CFG_OVERRIDE_ADDR		0xa26c78
 #define IWM_SB_CFG_OVERRIDE_ENABLE		0x8000
 #define IWM_SB_CFG_BASE_OVERRIDE		0xa20000
@@ -536,6 +538,10 @@ enum iwm_secure_load_status_reg {
 #define IWM_UREG_CHICK				0xa05c00
 #define IWM_UREG_CHICK_MSI_ENABLE		(1 << 24)
 #define IWM_UREG_CHICK_MSIX_ENABLE		(1 << 25)
+
+#define IWM_HPM_DEBUG				0xa03440
+#define IWM_HPM_PERSISTENCE_BIT			(1 << 12)
+#define IWM_PREG_WFPM_ACCESS			(1 << 12)
 
 /* Used to enable DBGM */
 #define IWM_HBUS_TARG_TEST_REG	(IWM_HBUS_BASE+0x05c)

@@ -1,3 +1,5 @@
+// TODO: prefer B antenna on some 9000 family, but we are too far from it
+
 /*	$NetBSD: if_iwm.c,v 1.88 2023/09/21 09:31:50 msaitoh Exp $	*/
 /*	OpenBSD: if_iwm.c,v 1.148 2016/11/19 21:07:08 stsp Exp	*/
 #define IEEE80211_NO_HT
@@ -280,6 +282,7 @@ static void	iwm_apm_stop(struct iwm_softc *);
 static int	iwm_allow_mcast(struct iwm_softc *);
 static void	iwm_init_msix_hw(struct iwm_softc *);
 static void	iwm_conf_msix_hw(struct iwm_softc *, int);
+static int	iwm_clear_persistence_bit(struct iwm_softc *);
 static int	iwm_start_hw(struct iwm_softc *);
 static void	iwm_stop_device(struct iwm_softc *);
 static void	iwm_nic_config(struct iwm_softc *);
@@ -997,6 +1000,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 static uint32_t
 iwm_read_prph(struct iwm_softc *sc, uint32_t addr)
 {
+	// XXX nic lock
 	IWM_WRITE(sc,
 	    IWM_HBUS_TARG_PRPH_RADDR, ((addr & 0x000fffff) | (3 << 24)));
 	IWM_BARRIER_READ_WRITE(sc);
@@ -1082,7 +1086,7 @@ iwm_nic_lock(struct iwm_softc *sc)
 	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000)
 		DELAY(2);
 
 	if (iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
@@ -1675,7 +1679,7 @@ iwm_apm_init(struct iwm_softc *sc)
 	int err = 0;
 
 	/* Disable L0S exit timer (platform NMI workaround) */
-	if (sc->sc_device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->sc_device_family < IWM_DEVICE_FAMILY_8000) {
 		IWM_SETBITS(sc, IWM_CSR_GIO_CHICKEN_BITS,
 		    IWM_CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 	}
@@ -1888,6 +1892,25 @@ iwm_conf_msix_hw(struct iwm_softc *sc, int stopped)
 	    IWM_MSIX_HW_INT_CAUSES_REG_HAP);
 }
 
+int
+iwm_clear_persistence_bit(struct iwm_softc *sc)
+{
+	uint32_t hpm, wprot;
+
+	hpm = iwm_read_prph(sc, IWM_HPM_DEBUG);
+	if (hpm != 0xa5a5a5a0 && (hpm & IWM_HPM_PERSISTENCE_BIT)) {
+		wprot = iwm_read_prph(sc, IWM_PREG_PRPH_WPROT_9000);
+		if (wprot & IWM_PREG_WFPM_ACCESS) {
+			aprint_error_dev(sc->sc_dev, "cannot clear persistence bit\n");
+			return EPERM;
+		}
+		iwm_write_prph(sc, IWM_HPM_DEBUG,
+		    hpm & ~IWM_HPM_PERSISTENCE_BIT);
+	}
+
+	return 0;
+}
+
 static int
 iwm_start_hw(struct iwm_softc *sc)
 {
@@ -1896,6 +1919,12 @@ iwm_start_hw(struct iwm_softc *sc)
 	err = iwm_prepare_card_hw(sc);
 	if (err)
 		return err;
+
+	if (sc->sc_device_family == IWM_DEVICE_FAMILY_9000) {
+		err = iwm_clear_persistence_bit(sc);
+		if (err)
+			return err;
+	}
 
 	/* Reset the entire device */
 	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
@@ -2275,7 +2304,7 @@ iwm_post_alive(struct iwm_softc *sc)
 	    IWM_FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Enable L1-Active */
-	if (sc->sc_device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->sc_device_family < IWM_DEVICE_FAMILY_8000) {
 		iwm_clear_bits_prph(sc, IWM_APMG_PCIDEV_STT_REG,
 		    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 	}
@@ -3320,7 +3349,6 @@ iwm_parse_nvm_data(struct iwm_softc *sc, const uint16_t *nvm_hw,
 	data->sku_cap_11n_enable = sku & IWM_NVM_SKU_CAP_11N_ENABLE;
 	data->sku_cap_mimo_disable = sku & IWM_NVM_SKU_CAP_MIMO_DISABLE;
 
-	data->n_hw_addrs = le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
 
 	if (sc->sc_device_family == IWM_DEVICE_FAMILY_7000) {
 		memcpy(hw_addr, nvm_hw + IWM_HW_ADDR, ETHER_ADDR_LEN);
@@ -3333,13 +3361,15 @@ iwm_parse_nvm_data(struct iwm_softc *sc, const uint16_t *nvm_hw,
 	} else
 		iwm_set_hw_address_8000(sc, data, mac_override, nvm_hw);
 
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000) {
+	if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000) {
 		uint16_t lar_offset, lar_config;
 		lar_offset = data->nvm_version < 0xE39 ?
 		    IWM_NVM_LAR_OFFSET_8000_OLD : IWM_NVM_LAR_OFFSET_8000;
 		lar_config = le16_to_cpup(regulatory + lar_offset);
                 data->lar_enabled = !!(lar_config & IWM_NVM_LAR_ENABLED_8000);
-	}
+		data->n_hw_addrs = le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS_8000);
+	} else
+		data->n_hw_addrs = le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
 
 	if (sc->sc_device_family == IWM_DEVICE_FAMILY_7000)
 		iwm_init_channel_map(sc, &nvm_sw[IWM_NVM_CHANNELS],
@@ -3371,7 +3401,7 @@ iwm_parse_nvm_sections(struct iwm_softc *sc, struct iwm_nvm_section *sections)
 		}
 
 		hw = (const uint16_t *) sections[IWM_NVM_SECTION_TYPE_HW].data;
-	} else if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000) {
+	} else if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000) {
 		/* SW and REGULATORY sections are mandatory */
 		if (!sections[IWM_NVM_SECTION_TYPE_SW].data ||
 		    !sections[IWM_NVM_SECTION_TYPE_REGULATORY].data) {
@@ -3416,7 +3446,7 @@ iwm_nvm_init(struct iwm_softc *sc)
 	int i, section, err;
 	uint16_t len;
 	uint8_t *buf;
-	const size_t bufsz = (sc->sc_device_family == IWM_DEVICE_FAMILY_8000) ?
+	const size_t bufsz = (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000) ?
 	    IWM_MAX_NVM_SECTION_SIZE_8000 : IWM_MAX_NVM_SECTION_SIZE_7000;
 
 	/* Read From FW NVM */
@@ -3736,7 +3766,7 @@ iwm_load_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
 	sc->sc_uc.uc_intr = 0;
 
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000)
 		err = iwm_load_firmware_8000(sc, ucode_type);
 	else
 		err = iwm_load_firmware_7000(sc, ucode_type);
@@ -3745,12 +3775,12 @@ iwm_load_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
 	/* wait for the firmware to load */
 	for (w = 0; !sc->sc_uc.uc_intr && w < 10; w++)
-		err = tsleep(&sc->sc_uc, 0, "iwmuc", mstohz(100));
+		err = tsleep(&sc->sc_uc, 0, "iwmuc", mstohz(1000));
 	if (err || !sc->sc_uc.uc_ok) {
 		aprint_error_dev(sc->sc_dev,
 		    "could not load firmware (error %d, ok %d)\n",
 		    err, sc->sc_uc.uc_ok);
-		if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000) {
+		if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000) {
 			aprint_error_dev(sc->sc_dev, "cpu1 status: 0x%x\n",
 			    iwm_read_prph(sc, IWM_SB_CPU_1_STATUS));
 			aprint_error_dev(sc->sc_dev, "cpu2 status: 0x%x\n",
@@ -6289,7 +6319,11 @@ iwm_setrates(struct iwm_node *in)
 	while (j < __arraycount(lq->rs_table))
 		lq->rs_table[j++] = lq->rs_table[i];
 
-	lq->single_stream_ant_msk = IWM_ANT_A;
+	if (sc->sc_device_family == IWM_DEVICE_FAMILY_9000 &&
+	    (iwm_fw_valid_tx_ant(sc) & IWM_ANT_B))
+		lq->single_stream_ant_msk = IWM_ANT_B;
+        else
+		lq->single_stream_ant_msk = IWM_ANT_A;
 	lq->dual_stream_ant_msk = IWM_ANT_AB;
 
 	lq->agg_time_limit = htole16(4000);	/* 4ms */
@@ -7722,6 +7756,7 @@ iwm_intr(void *arg)
 	return 1;
 }
 
+
 static int
 iwm_intr_msix(struct iwm_softc *sc)
 {
@@ -7732,6 +7767,8 @@ iwm_intr_msix(struct iwm_softc *sc)
 
 	inta_fh = IWM_READ(sc, IWM_CSR_MSIX_FH_INT_CAUSES_AD);
 	inta_hw = IWM_READ(sc, IWM_CSR_MSIX_HW_INT_CAUSES_AD);
+#define NOISE printf("%s:%d\ninta_fh %x\tinta_hw %x\n", __func__, __LINE__, inta_fh, inta_hw);
+	NOISE
 	IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
 	IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
 	inta_fh &= sc->sc_fh_mask;
@@ -7739,34 +7776,45 @@ iwm_intr_msix(struct iwm_softc *sc)
 
 	if (inta_fh & IWM_MSIX_FH_INT_CAUSES_Q0 ||
 	    inta_fh & IWM_MSIX_FH_INT_CAUSES_Q1) {
+		NOISE
 		iwm_notif_intr(sc);
 	}
 
+	NOISE
 	/* firmware chunk loaded */
 	if (inta_fh & IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
+		NOISE
 		sc->sc_fw_chunk_done = 1;
 		wakeup(&sc->sc_fw);
 	}
 
+	NOISE
 	if ((inta_fh & IWM_MSIX_FH_INT_CAUSES_FH_ERR) ||
 	    (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR) ||
 	    (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR_V2)) {
+		NOISE
 		if (ifp->if_flags & IFF_DEBUG) {
+			NOISE
 			iwm_nic_error(sc);
 			//iwm_dump_driver_status(sc);
 		}
+		NOISE
 		aprint_error_dev(sc->sc_dev, "fatal firmware error\n");
 		//if ((sc->sc_flags & IWM_FLAG_SHUTDOWN) == 0)
 			//task_add(systq, &sc->init_task);
 		return 1;
 	}
 
+	NOISE
 	if (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_RF_KILL) {
+		NOISE
 		iwm_check_rfkill(sc);
 		// task_add(systq, &sc->init_task);
 	}
 
+	NOISE
 	if (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_HW_ERR) {
+		NOISE
 		printf("%s: hardware error, stopping device \n", DEVNAME(sc));
 		//if ((sc->sc_flags & IWM_FLAG_SHUTDOWN) == 0) {
 			//sc->sc_flags |= IWM_FLAG_HW_ERR;
@@ -7775,6 +7823,7 @@ iwm_intr_msix(struct iwm_softc *sc)
 		return 1;
 	}
 
+	NOISE
 	/*
 	 * Before sending the interrupt the HW disables it to prevent
 	 * a nested interrupt. This is done by writing 1 to the corresponding
@@ -8157,7 +8206,7 @@ iwm_attach(device_t parent, device_t self, void *aux)
 	 * in the old format.
 	 */
 
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000)
 		sc->sc_hw_rev = (sc->sc_hw_rev & 0xfff0) |
 		    (IWM_CSR_HW_REV_STEP(sc->sc_hw_rev << 2) << 2);
 
@@ -8166,7 +8215,7 @@ iwm_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000) {
+	if (sc->sc_device_family >= IWM_DEVICE_FAMILY_8000) {
 		uint32_t hw_step;
 
 		/*
