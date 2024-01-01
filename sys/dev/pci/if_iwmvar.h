@@ -274,8 +274,9 @@ struct iwm_tx_ring {
 	int			cur;
 };
 
+#define IWM_RX_MQ_RING_COUNT	512
 #define IWM_RX_RING_COUNT	256
-#define IWM_RBUF_COUNT		(IWM_RX_RING_COUNT + 32)
+#define IWM_RBUF_COUNT		4096
 /* Linux driver optionally uses 8k buffer */
 #define IWM_RBUF_SIZE		4096
 
@@ -285,12 +286,12 @@ struct iwm_rx_data {
 };
 
 struct iwm_rx_ring {
-	struct iwm_dma_info	desc_dma;
+	struct iwm_dma_info	free_desc_dma;
 	struct iwm_dma_info	stat_dma;
-	struct iwm_dma_info	buf_dma;
-	uint32_t		*desc;
+	struct iwm_dma_info	used_desc_dma;
+	void			*desc;
 	struct iwm_rb_status	*stat;
-	struct iwm_rx_data	data[IWM_RX_RING_COUNT];
+	struct iwm_rx_data	data[IWM_RX_MQ_RING_COUNT];
 	int			cur;
 };
 
@@ -488,6 +489,7 @@ struct iwm_softc {
 	int sc_noise;
 
 	int sc_mqrx_supported;
+	int sc_integrated;
 
 	int sc_cmd_hold_nic_awake;
 

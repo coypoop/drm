@@ -282,6 +282,7 @@ static int	iwm_set_default_calib(struct iwm_softc *, const void *);
 static int	iwm_read_firmware(struct iwm_softc *, enum iwm_ucode_type);
 static uint32_t iwm_read_prph(struct iwm_softc *, uint32_t);
 static void	iwm_write_prph(struct iwm_softc *, uint32_t, uint32_t);
+static void	iwm_write_prph64(struct iwm_softc *, uint64_t, uint64_t);
 #ifdef IWM_DEBUG
 static int	iwm_read_mem(struct iwm_softc *, uint32_t, void *, int);
 #endif
@@ -325,6 +326,8 @@ static int	iwm_start_hw(struct iwm_softc *);
 static void	iwm_stop_device(struct iwm_softc *);
 static void	iwm_nic_config(struct iwm_softc *);
 static int	iwm_nic_rx_init(struct iwm_softc *);
+static int	iwm_nic_rx_legacy_init(struct iwm_softc *);
+static int	iwm_nic_rx_mq_init(struct iwm_softc *);
 static int	iwm_nic_tx_init(struct iwm_softc *);
 static int	iwm_nic_init(struct iwm_softc *);
 static int	iwm_enable_txq(struct iwm_softc *, int, int, int);
@@ -1058,6 +1061,13 @@ TRACE;
 	IWM_WRITE(sc, IWM_HBUS_TARG_PRPH_WDAT, val);
 }
 
+static void    
+iwm_write_prph64(struct iwm_softc *sc, uint64_t addr, uint64_t val)
+{
+	iwm_write_prph(sc, (uint32_t)addr, val & 0xffffffff);
+	iwm_write_prph(sc, (uint32_t)addr + 4, val >> 32);
+}
+
 #ifdef IWM_DEBUG
 static int
 iwm_read_mem(struct iwm_softc *sc, uint32_t addr, void *buf, int dwords)
@@ -1254,19 +1264,27 @@ iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 {
 TRACE;
 	bus_size_t size;
-	int i, err;
+	size_t descsz;
+	int count, i, err;
 
 	ring->cur = 0;
 
 	/* Allocate RX descriptors (256-byte aligned). */
-	size = IWM_RX_RING_COUNT * sizeof(uint32_t);
-	err = iwm_dma_contig_alloc(sc->sc_dmat, &ring->desc_dma, size, 256);
+	if (sc->sc_mqrx_supported) {
+		count = IWM_RX_MQ_RING_COUNT;
+		descsz = sizeof(uint64_t);
+	} else {
+		count = IWM_RX_RING_COUNT;
+		descsz = sizeof(uint32_t);
+	}
+	size = count * descsz;
+	err = iwm_dma_contig_alloc(sc->sc_dmat, &ring->free_desc_dma, size, 256);
 	if (err) {
 		aprint_error_dev(sc->sc_dev,
 		    "could not allocate RX ring DMA memory\n");
 		goto fail;
 	}
-	ring->desc = ring->desc_dma.vaddr;
+	ring->desc = ring->free_desc_dma.vaddr;
 
 	/* Allocate RX status area (16-byte aligned). */
 	err = iwm_dma_contig_alloc(sc->sc_dmat, &ring->stat_dma,
@@ -1278,7 +1296,18 @@ TRACE;
 	}
 	ring->stat = ring->stat_dma.vaddr;
 
-	for (i = 0; i < IWM_RX_RING_COUNT; i++) {
+	if (sc->sc_mqrx_supported) {
+		size = count * sizeof(uint32_t);
+		err = iwm_dma_contig_alloc(sc->sc_dmat, &ring->used_desc_dma,
+		    size, 256);
+		if (err) {
+			aprint_error_dev(sc->sc_dev,
+			    "could not allocate RX ring DMA memory\n");
+			goto fail;
+		}
+	}
+
+	for (i = 0; i < count; i++) {
 		struct iwm_rx_data *data = &ring->data[i];
 
 		memset(data, 0, sizeof(*data));
@@ -1333,12 +1362,18 @@ static void
 iwm_free_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 {
 TRACE;
-	int i;
+	int count, i;
 
-	iwm_dma_contig_free(&ring->desc_dma);
+	iwm_dma_contig_free(&ring->free_desc_dma);
 	iwm_dma_contig_free(&ring->stat_dma);
+	iwm_dma_contig_free(&ring->used_desc_dma);
 
-	for (i = 0; i < IWM_RX_RING_COUNT; i++) {
+	if (sc->sc_mqrx_supported)
+		count = IWM_RX_MQ_RING_COUNT;
+	else
+		count = IWM_RX_RING_COUNT;
+
+	for (i = 0; i < count; i++) {
 		struct iwm_rx_data *data = &ring->data[i];
 
 		if (data->m != NULL) {
@@ -2195,6 +2230,66 @@ TRACE;
 static int
 iwm_nic_rx_init(struct iwm_softc *sc)
 {
+	if (sc->sc_mqrx_supported)
+		return iwm_nic_rx_mq_init(sc);
+	else
+		return iwm_nic_rx_legacy_init(sc);
+}
+static int     
+iwm_nic_rx_mq_init(struct iwm_softc *sc)
+{	    
+	int enabled;
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
+
+	/* Stop RX DMA. */
+	iwm_write_prph(sc, IWM_RFH_RXF_DMA_CFG, 0);
+	/* Disable RX used and free queue operation. */
+	iwm_write_prph(sc, IWM_RFH_RXF_RXQ_ACTIVE, 0);
+	
+	iwm_write_prph64(sc, IWM_RFH_Q0_FRBDCB_BA_LSB,
+	    sc->rxq.free_desc_dma.paddr);
+	iwm_write_prph64(sc, IWM_RFH_Q0_URBDCB_BA_LSB,
+	    sc->rxq.used_desc_dma.paddr);
+	iwm_write_prph64(sc, IWM_RFH_Q0_URBD_STTS_WPTR_LSB,
+	    sc->rxq.stat_dma.paddr);
+	iwm_write_prph(sc, IWM_RFH_Q0_FRBDCB_WIDX, 0);
+	iwm_write_prph(sc, IWM_RFH_Q0_FRBDCB_RIDX, 0);
+	iwm_write_prph(sc, IWM_RFH_Q0_URBDCB_WIDX, 0);
+	
+	/* We configure only queue 0 for now. */
+	enabled = ((1 << 0) << 16) | (1 << 0);
+
+	/* Enable RX DMA, 4KB buffer size. */
+	iwm_write_prph(sc, IWM_RFH_RXF_DMA_CFG,
+	    IWM_RFH_DMA_EN_ENABLE_VAL |
+	    IWM_RFH_RXF_DMA_RB_SIZE_4K |
+	    IWM_RFH_RXF_DMA_MIN_RB_4_8 |
+	    IWM_RFH_RXF_DMA_DROP_TOO_LARGE_MASK |
+	    IWM_RFH_RXF_DMA_RBDCB_SIZE_512);
+
+	/* Enable RX DMA snooping. */
+	iwm_write_prph(sc, IWM_RFH_GEN_CFG,
+	    IWM_RFH_GEN_CFG_RFH_DMA_SNOOP |
+	    IWM_RFH_GEN_CFG_SERVICE_DMA_SNOOP |
+	    (sc->sc_integrated ? IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_64 :
+	    IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_128));
+
+	/* Enable the configured queue(s). */
+	iwm_write_prph(sc, IWM_RFH_RXF_RXQ_ACTIVE, enabled);
+
+	iwm_nic_unlock(sc);
+
+	IWM_WRITE_1(sc, IWM_CSR_INT_COALESCING, IWM_HOST_INT_TIMEOUT_DEF);
+
+	IWM_WRITE(sc, IWM_RFH_Q0_FRBDCB_WIDX_TRG, 8);
+
+	return 0;
+}
+static int     
+iwm_nic_rx_legacy_init(struct iwm_softc *sc)
+{           
 TRACE;
 	if (!iwm_nic_lock(sc))
 		return EBUSY;
@@ -2212,7 +2307,7 @@ TRACE;
 
 	/* Set physical address of RX ring (256-byte aligned). */
 	IWM_WRITE(sc,
-	    IWM_FH_RSCSR_CHNL0_RBDCB_BASE_REG, sc->rxq.desc_dma.paddr >> 8);
+	    IWM_FH_RSCSR_CHNL0_RBDCB_BASE_REG, sc->rxq.free_desc_dma.paddr >> 8);
 
 	/* Set physical address of RX status (16-byte aligned). */
 	IWM_WRITE(sc,
@@ -4213,9 +4308,19 @@ iwm_rx_addbuf(struct iwm_softc *sc, int size, int idx)
 	bus_dmamap_sync(sc->sc_dmat, data->map, 0, size, BUS_DMASYNC_PREREAD);
 
 	/* Update RX descriptor. */
-	ring->desc[idx] = htole32(data->map->dm_segs[0].ds_addr >> 8);
-	bus_dmamap_sync(sc->sc_dmat, ring->desc_dma.map,
-	    idx * sizeof(uint32_t), sizeof(uint32_t), BUS_DMASYNC_PREWRITE);
+	if (sc->sc_mqrx_supported) {
+		((uint64_t *)ring->desc)[idx] =
+		    htole64(data->map->dm_segs[0].ds_addr);
+		bus_dmamap_sync(sc->sc_dmat, ring->free_desc_dma.map,
+		    idx * sizeof(uint64_t), sizeof(uint64_t),
+		    BUS_DMASYNC_PREWRITE);
+	} else {
+		((uint32_t *)ring->desc)[idx] =
+		    htole32(data->map->dm_segs[0].ds_addr >> 8);
+		bus_dmamap_sync(sc->sc_dmat, ring->free_desc_dma.map,
+		    idx * sizeof(uint32_t), sizeof(uint32_t),
+		    BUS_DMASYNC_PREWRITE);
+	}
 
 	return 0;
 }

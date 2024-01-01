@@ -439,6 +439,112 @@ enum iwm_secure_load_status_reg {
 
 #define IWM_LMPM_SECURE_INSPECTOR_CODE_ADDR		0x1e38
 #define IWM_LMPM_SECURE_INSPECTOR_DATA_ADDR		0x1e3c
+
+/* 9000 rx series registers */
+
+#define IWM_RFH_Q0_FRBDCB_BA_LSB 0xA08000 /* 64 bit address */
+#define IWM_RFH_Q_FRBDCB_BA_LSB(q) (IWM_RFH_Q0_FRBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define IWM_RFH_Q0_FRBDCB_WIDX 0xA08080
+#define IWM_RFH_Q_FRBDCB_WIDX(q) (IWM_RFH_Q0_FRBDCB_WIDX + (q) * 4)
+/* Write index table - shadow registers */
+#define IWM_RFH_Q0_FRBDCB_WIDX_TRG 0x1C80
+#define IWM_RFH_Q_FRBDCB_WIDX_TRG(q) (IWM_RFH_Q0_FRBDCB_WIDX_TRG + (q) * 4)
+/* Read index table */
+#define IWM_RFH_Q0_FRBDCB_RIDX 0xA080C0
+#define IWM_RFH_Q_FRBDCB_RIDX(q) (IWM_RFH_Q0_FRBDCB_RIDX + (q) * 4)
+/* Used list table */
+#define IWM_RFH_Q0_URBDCB_BA_LSB 0xA08100 /* 64 bit address */
+#define IWM_RFH_Q_URBDCB_BA_LSB(q) (IWM_RFH_Q0_URBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define IWM_RFH_Q0_URBDCB_WIDX 0xA08180
+#define IWM_RFH_Q_URBDCB_WIDX(q) (IWM_RFH_Q0_URBDCB_WIDX + (q) * 4)
+#define IWM_RFH_Q0_URBDCB_VAID 0xA081C0
+#define IWM_RFH_Q_URBDCB_VAID(q) (IWM_RFH_Q0_URBDCB_VAID + (q) * 4)
+/* stts */
+#define IWM_RFH_Q0_URBD_STTS_WPTR_LSB 0xA08200 /*64 bits address */
+#define IWM_RFH_Q_URBD_STTS_WPTR_LSB(q) (IWM_RFH_Q0_URBD_STTS_WPTR_LSB + (q) * 8)
+
+#define IWM_RFH_Q0_ORB_WPTR_LSB 0xA08280
+#define IWM_RFH_Q_ORB_WPTR_LSB(q) (IWM_RFH_Q0_ORB_WPTR_LSB + (q) * 8)
+#define IWM_RFH_RBDBUF_RBD0_LSB 0xA08300
+#define IWM_RFH_RBDBUF_RBD_LSB(q) (IWM_RFH_RBDBUF_RBD0_LSB + (q) * 8)
+
+/**
+ * RFH Status Register
+ *
+ * Bit fields:
+ *
+ * Bit 29: RBD_FETCH_IDLE
+ * This status flag is set by the RFH when there is no active RBD fetch from
+ * DRAM.
+ * Once the RFH RBD controller starts fetching (or when there is a pending
+ * RBD read response from DRAM), this flag is immediately turned off.
+ *
+ * Bit 30: SRAM_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * SRAM to DRAM.
+ * Once the SRAM to DRAM DMA is active, this flag is immediately turned off.
+ *
+ * Bit 31: RXF_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * RXF to DRAM.
+ * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
+ */
+#define IWM_RFH_GEN_STATUS          0xA09808
+#define IWM_RFH_GEN_STATUS_GEN3     0xA07824
+#define IWM_RBD_FETCH_IDLE  (1 << 29)
+#define IWM_SRAM_DMA_IDLE   (1 << 30)
+#define IWM_RXF_DMA_IDLE    (1U << 31)
+
+/* DMA configuration */
+#define IWM_RFH_RXF_DMA_CFG         0xA09820
+#define IWM_RFH_RXF_DMA_CFG_GEN3    0xA07880
+/* RB size */
+#define IWM_RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
+#define IWM_RFH_RXF_DMA_RB_SIZE_POS 16
+#define IWM_RFH_RXF_DMA_RB_SIZE_1K  (0x1 << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_2K  (0x2 << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_4K  (0x4 << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_8K  (0x8 << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_12K (0x9 << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_16K (0xA << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_20K (0xB << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_24K (0xC << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_28K (0xD << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RB_SIZE_32K (0xE << IWM_RFH_RXF_DMA_RB_SIZE_POS)
+/* RB Circular Buffer size:defines the table sizes in RBD units */
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_MASK (0x00F00000) /* bits 20-23 */
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_POS 20
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_8        (0x3 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_16       (0x4 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_32       (0x5 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_64       (0x7 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_128      (0x7 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_256      (0x8 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_512      (0x9 << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_1024     (0xA << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_RBDCB_SIZE_2048     (0xB << IWM_RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_MIN_RB_SIZE_MASK    (0x03000000) /* bit 24-25 */
+#define IWM_RFH_RXF_DMA_MIN_RB_SIZE_POS     24
+#define IWM_RFH_RXF_DMA_MIN_RB_4_8          (3 << IWM_RFH_RXF_DMA_MIN_RB_SIZE_POS)
+#define IWM_RFH_RXF_DMA_DROP_TOO_LARGE_MASK (0x04000000) /* bit 26 */
+#define IWM_RFH_RXF_DMA_SINGLE_FRAME_MASK   (0x20000000) /* bit 29 */
+#define IWM_RFH_DMA_EN_MASK                 (0xC0000000) /* bits 30-31*/
+#define IWM_RFH_DMA_EN_ENABLE_VAL           (1U << 31)
+
+#define IWM_RFH_RXF_RXQ_ACTIVE 0xA0980C
+
+#define IWM_RFH_GEN_CFG     0xA09800
+#define IWM_RFH_GEN_CFG_SERVICE_DMA_SNOOP   (1 << 0)
+#define IWM_RFH_GEN_CFG_RFH_DMA_SNOOP       (1 << 1)
+#define IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_128   0x00000010
+#define IWM_RFH_GEN_CFG_RB_CHUNK_SIZE_64    0x00000000
+/* the driver assumes everywhere that the default RXQ is 0 */
+#define IWM_RFH_GEN_CFG_DEFAULT_RXQ_NUM     0xF00
+
+/* end of 9000 rx series registers */
+
 #define IWM_LMPM_SECURE_UCODE_LOAD_CPU1_HDR_ADDR	0x1e78
 #define IWM_LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR	0x1e7c
 
