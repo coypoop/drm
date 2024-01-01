@@ -385,6 +385,7 @@ struct iwm_softc {
 	const void *sc_ih;
 	void *sc_soft_ih;
 	bool sc_msix;
+	unsigned sc_trace_depth;
 
 	/* TX scheduler rings. */
 	struct iwm_dma_info		sched_dma;
