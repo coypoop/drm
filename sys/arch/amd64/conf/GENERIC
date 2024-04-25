@@ -1,4 +1,3 @@
-# GENERIC machine description file
 #
 # This machine description file is used to generate the default NetBSD
 # kernel.  The generic kernel does not include all options, subsystems
