@@ -1,8 +1,4 @@
 #
-# This machine description file is used to generate the default NetBSD
-# kernel.  The generic kernel does not include all options, subsystems
-# and device drivers, but should be useful for most applications.
-#
 # The machine description file can be customised for your specific
 # machine to reduce the kernel size and improve its performance.
 #
