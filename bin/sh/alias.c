@@ -1,4 +1,3 @@
-/*	$NetBSD: alias.c,v 1.22 2023/02/24 19:04:54 kre Exp $	*/
 
 /*-
  * Copyright (c) 1993
