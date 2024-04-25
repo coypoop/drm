@@ -1237,4 +1237,5 @@ typecmd(int argc, char **argv)
 		}
 	}
 	return err;
+
 }
