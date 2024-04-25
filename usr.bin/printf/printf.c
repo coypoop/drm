@@ -1,4 +1,3 @@
-/*	$NetBSD: printf.c,v 1.54 2021/05/20 02:01:07 christos Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993
