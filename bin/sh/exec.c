@@ -1,4 +1,3 @@
-/*	$NetBSD: exec.c,v 1.59 2023/03/19 17:55:57 kre Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
