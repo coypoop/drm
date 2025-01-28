@@ -403,7 +403,12 @@ struct intel_display {
 
 		struct intel_gmbus *bus[GMBUS_NUM_PINS];
 
+#ifdef __NetBSD__
+		spinlock_t wait_lock;
+		drm_waitqueue_t wait_queue;
+#else
 		wait_queue_head_t wait_queue;
+#endif
 	} gmbus;
 
 	struct {
