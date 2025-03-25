@@ -30,11 +30,8 @@
 #include <linux/list.h>
 #include <linux/overflow.h>
 #include <linux/sched.h>
-<<<<<<< HEAD
 #include <linux/sched/clock.h>
-=======
 #include <linux/string_helpers.h>
->>>>>>> vendor/linux-drm-v6.6.35
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/sched/clock.h>
@@ -46,24 +43,11 @@
 struct drm_i915_private;
 struct timer_list;
 
-<<<<<<< HEAD
-#undef WARN_ON
-/* Many gcc seem to no see through this and fall over :( */
-#if 0
-#define WARN_ON(x) ({ \
-	bool __i915_warn_cond = (x); \
-	if (__builtin_constant_p(__i915_warn_cond)) \
-		BUILD_BUG_ON(__i915_warn_cond); \
-	WARN(__i915_warn_cond, "WARN_ON(" #x ")\n"); })
+#ifdef __NetBSD__
+#define	NBSD_BUG_URL "https://gnats.NetBSD.org/"
 #else
-#define WARN_ON(x) WARN((x), "%s\n", "WARN_ON(" __stringify(x) ")")
-#endif
-
-#undef WARN_ON_ONCE
-#define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")\n")
-=======
 #define FDO_BUG_URL "https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs"
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
@@ -439,7 +423,6 @@ static inline void __add_taint_for_CI(unsigned int taint)
 void cancel_timer(struct timer_list *t);
 void set_timer_ms(struct timer_list *t, unsigned long timeout);
 
-<<<<<<< HEAD
 #ifdef __NetBSD__
 static inline bool
 timer_expired(const struct timer_list *t)
@@ -447,19 +430,16 @@ timer_expired(const struct timer_list *t)
 	return callout_expired(__UNCONST(&t->tl_callout));
 }
 #else
-static inline bool timer_expired(const struct timer_list *t)
-=======
 static inline bool timer_active(const struct timer_list *t)
->>>>>>> vendor/linux-drm-v6.6.35
 {
 	return READ_ONCE(t->expires);
 }
-#endif
 
 static inline bool timer_expired(const struct timer_list *t)
 {
 	return timer_active(t) && !timer_pending(t);
 }
+#endif
 
 static inline bool i915_run_as_guest(void)
 {

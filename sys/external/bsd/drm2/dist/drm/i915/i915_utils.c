@@ -15,17 +15,12 @@ __KERNEL_RCSID(0, "$NetBSD: i915_utils.c,v 1.4 2021/12/19 11:37:41 riastradh Exp
 #include "i915_drv.h"
 #include "i915_utils.h"
 
-<<<<<<< HEAD
 #ifdef __NetBSD__
-#define	NBSD_BUG_URL "https://gnats.NetBSD.org/"
 #define	NBSD_BUG_MSG							      \
 	"Please file a bug at " NBSD_BUG_URL " in category kern"	      \
 	" providing the dmesg log by booting with debug/verbose"	      \
 	" as in `boot -vx'."
 #else
-#define FDO_BUG_URL "https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs"
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 #define FDO_BUG_MSG "Please file a bug on drm/i915; see " FDO_BUG_URL " for details."
 #endif
 
@@ -120,12 +115,8 @@ bool i915_error_injected(void)
 
 void cancel_timer(struct timer_list *t)
 {
-<<<<<<< HEAD
 #ifndef __NetBSD__
-	if (!READ_ONCE(t->expires))
-=======
 	if (!timer_active(t))
->>>>>>> vendor/linux-drm-v6.6.35
 		return;
 #endif
 
