@@ -162,11 +162,6 @@ int drm_sched_entity_error(struct drm_sched_entity *entity)
 	r = fence ? fence->error : 0;
 	rcu_read_unlock();
 
-<<<<<<< HEAD
-		if (!entity->sched_list[i]->ready) {
-			DRM_WARN("sched%s is not ready, skipping\n", sched->name);
-			continue;
-=======
 	return r;
 }
 EXPORT_SYMBOL(drm_sched_entity_error);
@@ -207,7 +202,6 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 			 * had on the scheduled fence.
 			 */
 			dma_fence_put(&s_fence->scheduled);
->>>>>>> vendor/linux-drm-v6.6.35
 		}
 
 		xa_erase(&job->dependencies, index);
@@ -313,133 +307,14 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 	last_user = cmpxchg(&entity->last_user, current->group_leader, NULL);
 	if ((!last_user || last_user == current->group_leader) &&
 	    (current->flags & PF_EXITING) && (current->exit_code == SIGKILL))
-<<<<<<< HEAD
 #endif
-	{
-		spin_lock(&entity->rq_lock);
-		entity->stopped = true;
-		drm_sched_rq_remove_entity(entity->rq, entity);
-		spin_unlock(&entity->rq_lock);
-	}
-=======
 		drm_sched_entity_kill(entity);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	return ret;
 }
 EXPORT_SYMBOL(drm_sched_entity_flush);
 
 /**
-<<<<<<< HEAD
- * drm_sched_entity_kill_jobs - helper for drm_sched_entity_kill_jobs
- *
- * @f: signaled fence
- * @cb: our callback structure
- *
- * Signal the scheduler finished fence when the entity in question is killed.
- */
-static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
-					  struct dma_fence_cb *cb)
-{
-	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
-						 finish_cb);
-
-	drm_sched_fence_finished(job->s_fence);
-	WARN_ON(job->s_fence->parent);
-	job->sched->ops->free_job(job);
-}
-
-/**
- * drm_sched_entity_kill_jobs - Make sure all remaining jobs are killed
- *
- * @entity: entity which is cleaned up
- *
- * Makes sure that all remaining jobs in an entity are killed before it is
- * destroyed.
- */
-static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
-{
-	struct drm_sched_job *job;
-	int r;
-
-	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
-		struct drm_sched_fence *s_fence = job->s_fence;
-
-		drm_sched_fence_scheduled(s_fence);
-		dma_fence_set_error(&s_fence->finished, -ESRCH);
-
-		/*
-		 * When pipe is hanged by older entity, new entity might
-		 * not even have chance to submit it's first job to HW
-		 * and so entity->last_scheduled will remain NULL
-		 */
-		if (!entity->last_scheduled) {
-			drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
-			continue;
-		}
-
-		r = dma_fence_add_callback(entity->last_scheduled,
-					   &job->finish_cb,
-					   drm_sched_entity_kill_jobs_cb);
-		if (r == -ENOENT)
-			drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
-		else if (r)
-			DRM_ERROR("fence add callback failed (%d)\n", r);
-	}
-}
-
-/**
- * drm_sched_entity_cleanup - Destroy a context entity
- *
- * @entity: scheduler entity
- *
- * This should be called after @drm_sched_entity_do_release. It goes over the
- * entity and signals all jobs with an error code if the process was killed.
- *
- */
-void drm_sched_entity_fini(struct drm_sched_entity *entity)
-{
-	struct drm_gpu_scheduler *sched = NULL;
-
-	if (entity->rq) {
-		sched = entity->rq->sched;
-		drm_sched_rq_remove_entity(entity->rq, entity);
-	}
-
-	spin_lock_destroy(&entity->rq_lock);
-
-	/* Consumption of existing IBs wasn't completed. Forcefully
-	 * remove them here.
-	 */
-	if (spsc_queue_count(&entity->job_queue)) {
-		if (sched) {
-			/*
-			 * Wait for thread to idle to make sure it isn't processing
-			 * this entity.
-			 */
-			wait_for_completion(&entity->entity_idle);
-
-		}
-		if (entity->dependency) {
-			dma_fence_remove_callback(entity->dependency,
-						  &entity->cb);
-			dma_fence_put(entity->dependency);
-			entity->dependency = NULL;
-		}
-
-		drm_sched_entity_kill_jobs(entity);
-	}
-
-	destroy_completion(&entity->entity_idle);
-
-	dma_fence_put(entity->last_scheduled);
-	entity->last_scheduled = NULL;
-}
-EXPORT_SYMBOL(drm_sched_entity_fini);
-
-/**
-=======
->>>>>>> vendor/linux-drm-v6.6.35
  * drm_sched_entity_fini - Destroy a context entity
  *
  * @entity: scheduler entity
@@ -467,6 +342,9 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 
 	dma_fence_put(rcu_dereference_check(entity->last_scheduled, true));
 	RCU_INIT_POINTER(entity->last_scheduled, NULL);
+
+	spin_lock_destroy(&entity->rq_lock);
+	destroy_completion(&entity->entity_idle);
 }
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
@@ -506,13 +384,9 @@ static void drm_sched_entity_wakeup(struct dma_fence *f,
 		container_of(cb, struct drm_sched_entity, cb);
 
 	drm_sched_entity_clear_dep(f, cb);
-<<<<<<< HEAD
 	spin_lock(&entity->rq->sched->job_list_lock);
-	drm_sched_wakeup(entity->rq->sched);
-	spin_unlock(&entity->rq->sched->job_list_lock);
-=======
 	drm_sched_wakeup_if_can_queue(entity->rq->sched);
->>>>>>> vendor/linux-drm-v6.6.35
+	spin_unlock(&entity->rq->sched->job_list_lock);
 }
 
 /**
@@ -716,16 +590,12 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 	ktime_t submit_ts;
 
 	trace_drm_sched_job(sched_job, entity);
-<<<<<<< HEAD
-	atomic_inc(&entity->rq->sched->score);
+	atomic_inc(entity->rq->sched->score);
 #ifdef __NetBSD__
 	WRITE_ONCE(entity->last_user, curproc);
 #else
 	WRITE_ONCE(entity->last_user, current->group_leader);
 #endif
-=======
-	atomic_inc(entity->rq->sched->score);
-	WRITE_ONCE(entity->last_user, current->group_leader);
 
 	/*
 	 * After the sched_job is pushed into the entity queue, it may be
@@ -733,7 +603,6 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 	 * Make sure to set the submit_ts first, to avoid a race.
 	 */
 	sched_job->submit_ts = submit_ts = ktime_get();
->>>>>>> vendor/linux-drm-v6.6.35
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 
 	/* first job wakes up scheduler */
@@ -749,17 +618,13 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 
 		drm_sched_rq_add_entity(entity->rq, entity);
 		spin_unlock(&entity->rq_lock);
-<<<<<<< HEAD
-		spin_lock(&entity->rq->sched->job_list_lock);
-		drm_sched_wakeup(entity->rq->sched);
-		spin_unlock(&entity->rq->sched->job_list_lock);
-=======
 
 		if (drm_sched_policy == DRM_SCHED_POLICY_FIFO)
 			drm_sched_rq_update_fifo(entity, submit_ts);
 
+		spin_lock(&entity->rq->sched->job_list_lock);
 		drm_sched_wakeup_if_can_queue(entity->rq->sched);
->>>>>>> vendor/linux-drm-v6.6.35
+		spin_unlock(&entity->rq->sched->job_list_lock);
 	}
 }
 EXPORT_SYMBOL(drm_sched_entity_push_job);

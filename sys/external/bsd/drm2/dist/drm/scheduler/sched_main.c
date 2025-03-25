@@ -280,7 +280,9 @@ static void drm_sched_job_done(struct drm_sched_job *s_job, int result)
 	dma_fence_get(&s_fence->finished);
 	drm_sched_fence_finished(s_fence, result);
 	dma_fence_put(&s_fence->finished);
-	wake_up_interruptible(&sched->wake_up_worker);
+	spin_lock(&sched->job_list_lock);
+	DRM_SPIN_WAKEUP_ONE(&sched->wake_up_worker, &sched->job_list_lock);
+	spin_unlock(&sched->job_list_lock);
 }
 
 /**
@@ -878,15 +880,10 @@ static bool drm_sched_can_queue(struct drm_gpu_scheduler *sched)
  */
 void drm_sched_wakeup_if_can_queue(struct drm_gpu_scheduler *sched)
 {
-<<<<<<< HEAD
 	assert_spin_locked(&sched->job_list_lock);
-	if (drm_sched_ready(sched))
+	if (drm_sched_can_queue(sched))
 		DRM_SPIN_WAKEUP_ONE(&sched->wake_up_worker,
 		    &sched->job_list_lock);
-=======
-	if (drm_sched_can_queue(sched))
-		wake_up_interruptible(&sched->wake_up_worker);
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 /**
@@ -918,34 +915,6 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 }
 
 /**
-<<<<<<< HEAD
- * drm_sched_process_job - process a job
- *
- * @f: fence
- * @cb: fence callbacks
- *
- * Called after job has finished execution.
- */
-static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
-{
-	struct drm_sched_job *s_job = container_of(cb, struct drm_sched_job, cb);
-	struct drm_sched_fence *s_fence = s_job->s_fence;
-	struct drm_gpu_scheduler *sched = s_fence->sched;
-
-	atomic_dec(&sched->hw_rq_count);
-	atomic_dec(&sched->score);
-
-	trace_drm_sched_process_job(s_fence);
-
-	drm_sched_fence_finished(s_fence);
-	spin_lock(&sched->job_list_lock);
-	DRM_SPIN_WAKEUP_ONE(&sched->wake_up_worker, &sched->job_list_lock);
-	spin_unlock(&sched->job_list_lock);
-}
-
-/**
-=======
->>>>>>> vendor/linux-drm-v6.6.35
  * drm_sched_get_cleanup_job - fetch the next finished job to be destroyed
  *
  * @sched: scheduler instance
@@ -956,23 +925,12 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 static struct drm_sched_job *
 drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 {
-<<<<<<< HEAD
-	struct drm_sched_job *job;
+	struct drm_sched_job *job, *next;
 
 	assert_spin_locked(&sched->job_list_lock);
-=======
-	struct drm_sched_job *job, *next;
->>>>>>> vendor/linux-drm-v6.6.35
 
-	spin_lock(&sched->job_list_lock);
-
-<<<<<<< HEAD
-	job = list_first_entry_or_null(&sched->ring_mirror_list,
-				       struct drm_sched_job, node);
-=======
 	job = list_first_entry_or_null(&sched->pending_list,
 				       struct drm_sched_job, list);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	if (job && dma_fence_is_signaled(&job->s_fence->finished)) {
 		/* remove job from pending_list */
@@ -994,11 +952,6 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 		job = NULL;
 	}
 
-<<<<<<< HEAD
-=======
-	spin_unlock(&sched->job_list_lock);
-
->>>>>>> vendor/linux-drm-v6.6.35
 	return job;
 }
 
@@ -1022,7 +975,7 @@ drm_sched_pick_best(struct drm_gpu_scheduler **sched_list,
 		sched = sched_list[i];
 
 		if (!sched->ready) {
-			DRM_WARN("scheduler %s is not ready, skipping",
+			DRM_WARN("scheduler %s is not ready, skipping\n",
 				 sched->name);
 			continue;
 		}
@@ -1172,15 +1125,9 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_COUNT; i++)
 		drm_sched_rq_init(sched, &sched->sched_rq[i]);
 
-<<<<<<< HEAD
 	DRM_INIT_WAITQUEUE(&sched->wake_up_worker, "drmschedw");
 	DRM_INIT_WAITQUEUE(&sched->job_scheduled, "drmschedj");
-	INIT_LIST_HEAD(&sched->ring_mirror_list);
-=======
-	init_waitqueue_head(&sched->wake_up_worker);
-	init_waitqueue_head(&sched->job_scheduled);
 	INIT_LIST_HEAD(&sched->pending_list);
->>>>>>> vendor/linux-drm-v6.6.35
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
 	INIT_DELAYED_WORK(&sched->work_tdr, drm_sched_job_timedout);
