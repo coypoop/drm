@@ -27,17 +27,12 @@ __KERNEL_RCSID(0, "$NetBSD: i915_sw_fence.c,v 1.6 2021/12/19 12:11:46 riastradh 
 #define I915_SW_FENCE_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
-<<<<<<< HEAD
-#define I915_SW_FENCE_FLAG_ALLOC BIT(3) /* after WQ_FLAG_* for safety */
-
+#ifdef CONFIG_DRM_I915_SW_FENCE_CHECK_DAG
 #ifdef __NetBSD__		/* XXX */
 spinlock_t i915_sw_fence_lock;
 #else
 static DEFINE_SPINLOCK(i915_sw_fence_lock);
 #endif
-=======
-#ifdef CONFIG_DRM_I915_SW_FENCE_CHECK_DAG
-static DEFINE_SPINLOCK(i915_sw_fence_lock);
 #endif
 
 #define WQ_FLAG_BITS \
@@ -46,7 +41,6 @@ static DEFINE_SPINLOCK(i915_sw_fence_lock);
 /* after WQ_FLAG_* for safety */
 #define I915_SW_FENCE_FLAG_FENCE BIT(WQ_FLAG_BITS - 1)
 #define I915_SW_FENCE_FLAG_ALLOC BIT(WQ_FLAG_BITS - 2)
->>>>>>> vendor/linux-drm-v6.6.35
 
 enum {
 	DEBUG_FENCE_IDLE = 0,
@@ -314,23 +308,16 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 			  const char *name,
 			  struct lock_class_key *key)
 {
-<<<<<<< HEAD
-	BUG_ON(!fn || (unsigned long)fn & ~I915_SW_FENCE_MASK);
-
 #ifdef __NetBSD__
 	spin_lock_init(&fence->wait.lock);
 	INIT_LIST_HEAD(&fence->wait.head);
 #else
 	__init_waitqueue_head(&fence->wait, name, key);
 #endif
-	fence->flags = (unsigned long)fn;
-=======
-	__init_waitqueue_head(&fence->wait, name, key);
 	fence->fn = fn;
 #ifdef CONFIG_DRM_I915_SW_FENCE_CHECK_DAG
 	fence->flags = 0;
 #endif
->>>>>>> vendor/linux-drm-v6.6.35
 
 	i915_sw_fence_reinit(fence);
 }
@@ -523,11 +510,7 @@ static void timer_i915_sw_fence_wake(struct timer_list *t)
 	if (!fence)
 		return;
 
-<<<<<<< HEAD
-	pr_notice("Asynchronous wait on fence %s:%s:%"PRIx64" timed out (hint:%p)\n",
-=======
-	pr_notice("Asynchronous wait on fence %s:%s:%llx timed out (hint:%ps)\n",
->>>>>>> vendor/linux-drm-v6.6.35
+	pr_notice("Asynchronous wait on fence %s:%s:%"PRIx64" timed out (hint:%ps)\n",
 		  cb->dma->ops->get_driver_name(cb->dma),
 		  cb->dma->ops->get_timeline_name(cb->dma),
 		  (uint64_t)cb->dma->seqno,
