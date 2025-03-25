@@ -55,13 +55,6 @@ __KERNEL_RCSID(0, "$NetBSD: radeon_ttm.c,v 1.26 2022/07/20 01:22:38 riastradh Ex
 #include "radeon.h"
 #include "radeon_ttm.h"
 
-#ifdef __NetBSD__
-#include <uvm/uvm_extern.h>
-#include <uvm/uvm_fault.h>
-#include <uvm/uvm_param.h>
-#include <drm/bus_dma_hacks.h>
-#endif
-
 static void radeon_ttm_debugfs_init(struct radeon_device *rdev);
 
 static int radeon_ttm_tt_bind(struct ttm_device *bdev, struct ttm_tt *ttm,
@@ -380,8 +373,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_device *bdev, struct ttm_tt *ttm
 	if (gtt->userflags & RADEON_GEM_USERPTR_ANONONLY) {
 		/* check that we only pin down anonymous memory
 		   to prevent problems with writeback */
-<<<<<<< HEAD
-		unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
+		unsigned long end = gtt->userptr + (u64)ttm->num_pages * PAGE_SIZE;
 #ifdef __NetBSD__
 		/* XXX ???  TOCTOU, anyone?  */
 		/* XXX should do range_test */
@@ -396,9 +388,6 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_device *bdev, struct ttm_tt *ttm
 		if (!ok)
 			return -EPERM;
 #else
-=======
-		unsigned long end = gtt->userptr + (u64)ttm->num_pages * PAGE_SIZE;
->>>>>>> vendor/linux-drm-v6.6.35
 		struct vm_area_struct *vma;
 		vma = find_vma(gtt->usermm, gtt->userptr);
 		if (!vma || vma->vm_file || vma->vm_end < end)
@@ -675,50 +664,24 @@ static int radeon_ttm_tt_populate(struct ttm_device *bdev,
 	}
 
 	if (slave && ttm->sg) {
-<<<<<<< HEAD
 #ifdef __NetBSD__
 		int r = drm_prime_bus_dmamap_load_sgt(ttm->bdev->dmat,
 		    gtt->ttm.dma_address, ttm->sg);
 		if (r)
 			return r;
 #else
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 gtt->ttm.dma_address, ttm->num_pages);
+		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+					       ttm->num_pages);
 #endif
-		ttm->state = tt_unbound;
 		return 0;
 	}
-
-#if !defined(__NetBSD__) || IS_ENABLED(CONFIG_AGP)
-	rdev = radeon_get_rdev(ttm->bdev);
-#endif
-#if IS_ENABLED(CONFIG_AGP)
-	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_agp_tt_populate(ttm, ctx);
-	}
-#endif
 
 #ifdef __NetBSD__
 	/* XXX errno NetBSD->Linux */
 	return ttm_bus_dma_populate(&gtt->ttm);
 #else
-
-#ifdef CONFIG_SWIOTLB
-	if (rdev->need_swiotlb && swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, rdev->dev, ctx);
-	}
-#endif
-
-	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm, ctx);
-#endif
-=======
-		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
-					       ttm->num_pages);
-		return 0;
-	}
-
 	return ttm_pool_alloc(&rdev->mman.bdev.pool, ttm, ctx);
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 }
 
 static void radeon_ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
@@ -745,30 +708,11 @@ static void radeon_ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm
 	if (slave)
 		return;
 
-<<<<<<< HEAD
-#if !defined(__NetBSD__) || IS_ENABLED(CONFIG_AGP)
-	rdev = radeon_get_rdev(ttm->bdev);
-#endif
-#if IS_ENABLED(CONFIG_AGP)
-	if (rdev->flags & RADEON_IS_AGP) {
-		ttm_agp_tt_unpopulate(ttm);
-		return;
-	}
-#endif
-
 #ifdef __NetBSD__
 	ttm_bus_dma_unpopulate(&gtt->ttm);
 	return;
 #else
-
-#ifdef CONFIG_SWIOTLB
-	if (rdev->need_swiotlb && swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate(&gtt->ttm, rdev->dev);
-		return;
-	}
-#endif
-
-	ttm_unmap_and_unpopulate_pages(rdev->dev, &gtt->ttm);
+	return ttm_pool_free(&rdev->mman.bdev.pool, ttm);
 #endif
 }
 
@@ -792,14 +736,8 @@ static const struct uvm_pagerops radeon_uvm_ops = {
 };
 #endif
 
-int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
-=======
-	return ttm_pool_free(&rdev->mman.bdev.pool, ttm);
-}
-
 int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
 			      struct ttm_tt *ttm, uint64_t addr,
->>>>>>> vendor/linux-drm-v6.6.35
 			      uint32_t flags)
 {
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(rdev, ttm);
@@ -1008,92 +946,6 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 	man->size = size >> PAGE_SHIFT;
 }
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-
-static int
-radeon_ttm_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
-    struct vm_page **pps, int npages, int centeridx, vm_prot_t access_type,
-    int flags)
-{
-	struct uvm_object *const uobj = ufi->entry->object.uvm_obj;
-	struct ttm_buffer_object *const bo = container_of(uobj,
-	    struct ttm_buffer_object, uvmobj);
-	struct radeon_device *const rdev = radeon_get_rdev(bo->bdev);
-	int error;
-
-	KASSERT(rdev != NULL);
-	down_read(&rdev->pm.mclk_lock);
-	error = ttm_bo_uvm_fault(ufi, vaddr, pps, npages, centeridx,
-	    access_type, flags);
-	up_read(&rdev->pm.mclk_lock);
-
-	return error;
-}
-
-int
-radeon_mmap_object(struct drm_device *dev, off_t offset, size_t size,
-    vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
-    struct file *file)
-{
-	struct radeon_device *rdev = dev->dev_private;
-
-	KASSERT(0 == (offset & (PAGE_SIZE - 1)));
-
-	if (__predict_false(rdev == NULL))	/* XXX How?? */
-		return -EINVAL;
-
-	return ttm_bo_mmap_object(&rdev->mman.bdev, offset, size, prot,
-	    uobjp, uoffsetp, file);
-}
-
-#else
-
-static vm_fault_t radeon_ttm_fault(struct vm_fault *vmf)
-{
-	struct ttm_buffer_object *bo;
-	struct radeon_device *rdev;
-	vm_fault_t ret;
-
-	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
-	if (bo == NULL)
-		return VM_FAULT_NOPAGE;
-
-	rdev = radeon_get_rdev(bo->bdev);
-	down_read(&rdev->pm.mclk_lock);
-	ret = ttm_bo_vm_fault(vmf);
-	up_read(&rdev->pm.mclk_lock);
-	return ret;
-}
-
-static struct vm_operations_struct radeon_ttm_vm_ops = {
-	.fault = radeon_ttm_fault,
-	.open = ttm_bo_vm_open,
-	.close = ttm_bo_vm_close,
-	.access = ttm_bo_vm_access
-};
-
-int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int r;
-	struct drm_file *file_priv = filp->private_data;
-	struct radeon_device *rdev = file_priv->minor->dev->dev_private;
-
-	if (rdev == NULL)
-		return -EINVAL;
-
-	r = ttm_bo_mmap(filp, vma, &rdev->mman.bdev);
-	if (unlikely(r != 0))
-		return r;
-
-	vma->vm_ops = &radeon_ttm_vm_ops;
-	return 0;
-}
-
-#endif	/* __NetBSD__ */
-
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 #if defined(CONFIG_DEBUG_FS)
 
 static int radeon_ttm_page_pool_show(struct seq_file *m, void *data)

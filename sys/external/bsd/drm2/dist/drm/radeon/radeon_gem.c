@@ -42,6 +42,13 @@ __KERNEL_RCSID(0, "$NetBSD: radeon_gem.c,v 1.9 2021/12/18 23:45:43 riastradh Exp
 #include "radeon.h"
 #include "radeon_prime.h"
 
+#ifdef __NetBSD__
+#include <uvm/uvm_extern.h>
+#include <uvm/uvm_fault.h>
+#include <uvm/uvm_param.h>
+#include <drm/bus_dma_hacks.h>
+#endif
+
 #include <linux/nbsd-namespace.h>
 struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags);
@@ -50,6 +57,52 @@ int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
 
 const struct drm_gem_object_funcs radeon_gem_object_funcs;
+
+#ifdef __NetBSD__
+
+static int
+radeon_gem_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr,
+    struct vm_page **pps, int npages, int centeridx, vm_prot_t access_type,
+    int flags)
+{
+	struct uvm_object *const uobj = ufi->entry->object.uvm_obj;
+	struct ttm_buffer_object *const bo = container_of(uobj,
+	    struct ttm_buffer_object, uvmobj);
+	struct radeon_device *const rdev = radeon_get_rdev(bo->bdev);
+	int error;
+
+	KASSERT(rdev != NULL);
+	down_read(&rdev->pm.mclk_lock);
+	error = ttm_bo_uvm_fault(ufi, vaddr, pps, npages, centeridx,
+	    access_type, flags);
+	up_read(&rdev->pm.mclk_lock);
+
+	return error;
+}
+
+int
+radeon_mmap_object(struct drm_device *dev, off_t offset, size_t size,
+    vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
+    struct file *file)
+{
+	struct radeon_device *rdev = dev->dev_private;
+
+	KASSERT(0 == (offset & (PAGE_SIZE - 1)));
+
+	if (__predict_false(rdev == NULL))	/* XXX How?? */
+		return -EINVAL;
+
+	return ttm_bo_mmap_object(&rdev->mman.bdev, offset, size, prot,
+	    uobjp, uoffsetp, file);
+}
+
+static const struct uvm_pagerops radeon_gem_vm_ops = {
+	.pgo_reference = &ttm_bo_uvm_reference,
+	.pgo_detach = &ttm_bo_uvm_detach,
+	.pgo_fault = &radeon_gem_fault,
+};
+
+#else
 
 static vm_fault_t radeon_gem_fault(struct vm_fault *vmf)
 {
@@ -86,6 +139,8 @@ static const struct vm_operations_struct radeon_gem_vm_ops = {
 	.close = ttm_bo_vm_close,
 	.access = ttm_bo_vm_access
 };
+
+#endif
 
 static void radeon_gem_object_free(struct drm_gem_object *gobj)
 {
