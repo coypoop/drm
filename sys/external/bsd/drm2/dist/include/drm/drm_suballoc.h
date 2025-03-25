@@ -24,7 +24,8 @@
  * @align: Default alignment for the managed range.
  */
 struct drm_suballoc_manager {
-	wait_queue_head_t wq;
+	spinlock_t wq_lock;
+	drm_waitqueue_t wq;
 	struct list_head *hole;
 	struct list_head olist;
 	struct list_head flist[DRM_SUBALLOC_MAX_QUEUES];
