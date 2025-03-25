@@ -664,13 +664,8 @@ void intel_runtime_pm_init_early(struct intel_runtime_pm *rpm)
 {
 	struct drm_i915_private *i915 =
 			container_of(rpm, struct drm_i915_private, runtime_pm);
-<<<<<<< HEAD
-	struct pci_dev *pdev = i915->drm.pdev;
-	struct device *kdev = pci_dev_dev(pdev);
-=======
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
-	struct device *kdev = &pdev->dev;
->>>>>>> vendor/linux-drm-v6.6.35
+	struct device *kdev = pci_dev_dev(pdev);
 
 	rpm->kdev = kdev;
 	rpm->available = HAS_RUNTIME_PM(i915);

@@ -125,27 +125,19 @@ struct intel_forcewake_range {
 	enum forcewake_domains domains;
 };
 
-<<<<<<< HEAD
-=======
 /* Other register ranges (e.g., shadow tables, MCR tables, etc.) */
 struct i915_range {
 	u32 start;
 	u32 end;
 };
->>>>>>> vendor/linux-drm-v6.6.35
 
 struct intel_uncore {
 #ifdef __NetBSD__
-#  define	__iomem	/* XXX */
-#endif
-	void __iomem *regs;
-#ifdef __NetBSD__
-#  undef	__iomem
-#endif
-
-#ifdef __NetBSD__
 	bus_space_tag_t regs_bst;
 	bus_space_handle_t regs_bsh;
+	bus_size_t regs_mmio_size;
+#else
+	void __iomem *regs;
 #endif
 
 	struct drm_i915_private *i915;
@@ -245,16 +237,6 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 	return uncore->flags & UNCORE_HAS_FIFO;
 }
 
-<<<<<<< HEAD
-void
-intel_uncore_mmio_debug_init_early(struct intel_uncore_mmio_debug *mmio_debug);
-void
-intel_uncore_mmio_debug_fini_early(struct intel_uncore_mmio_debug *mmio_debug);
-void intel_uncore_init_early(struct intel_uncore *uncore,
-			     struct drm_i915_private *i915);
-void intel_uncore_fini_early(struct intel_uncore *uncore,
-			     struct drm_i915_private *i915);
-=======
 static inline bool
 intel_uncore_needs_flr_on_fini(const struct intel_uncore *uncore)
 {
@@ -268,10 +250,12 @@ intel_uncore_set_flr_on_fini(struct intel_uncore *uncore)
 }
 
 void intel_uncore_mmio_debug_init_early(struct drm_i915_private *i915);
+void intel_uncore_mmio_debug_fini_early(struct drm_i915_private *i915);
 void intel_uncore_init_early(struct intel_uncore *uncore,
 			     struct intel_gt *gt);
+void intel_uncore_fini_early(struct intel_uncore *uncore,
+			     struct intel_gt *gt);
 int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr);
->>>>>>> vendor/linux-drm-v6.6.35
 int intel_uncore_init_mmio(struct intel_uncore *uncore);
 void intel_uncore_prune_engine_fw_domains(struct intel_uncore *uncore,
 					  struct intel_gt *gt);

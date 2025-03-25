@@ -53,17 +53,15 @@ fw_domains_get(struct intel_uncore *uncore, enum forcewake_domains fw_domains)
 	uncore->fw_get_funcs->force_wake_get(uncore, fw_domains);
 }
 
+/* XXX pass i915, not mmio_debug, like init_early */
 void
-<<<<<<< HEAD
 intel_uncore_mmio_debug_fini_early(struct intel_uncore_mmio_debug *mmio_debug)
 {
 	spin_lock_destroy(&mmio_debug->lock);
 }
 
-static void mmio_debug_suspend(struct intel_uncore_mmio_debug *mmio_debug)
-=======
+void
 intel_uncore_mmio_debug_init_early(struct drm_i915_private *i915)
->>>>>>> vendor/linux-drm-v6.6.35
 {
 	spin_lock_init(&i915->mmio_debug.lock);
 	i915->mmio_debug.unclaimed_mmio_check = 1;
@@ -2261,18 +2259,13 @@ static int __fw_domain_init(struct intel_uncore *uncore,
 
 	d->uncore = uncore;
 	d->wake_count = 0;
-<<<<<<< HEAD
 #ifdef __NetBSD__
-	d->reg_set = i915_mmio_reg_offset(reg_set);
-	d->reg_ack = i915_mmio_reg_offset(reg_ack);
+	d->reg_set = i915_mmio_reg_offset(reg_set) + uncore->gsi_offset;
+	d->reg_ack = i915_mmio_reg_offset(reg_ack) + uncore->gsi_offset;
 #else
-	d->reg_set = uncore->regs + i915_mmio_reg_offset(reg_set);
-	d->reg_ack = uncore->regs + i915_mmio_reg_offset(reg_ack);
-#endif
-=======
 	d->reg_set = uncore->regs + i915_mmio_reg_offset(reg_set) + uncore->gsi_offset;
 	d->reg_ack = uncore->regs + i915_mmio_reg_offset(reg_ack) + uncore->gsi_offset;
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 
 	d->id = domain_id;
 
@@ -2525,7 +2518,15 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 
 static void uncore_unmap_mmio(struct drm_device *drm, void *regs)
 {
+#ifdef __NetBSD__
+	struct intel_uncore *uncore;
+
+	bus_space_unmap(uncore->regs_bst, uncore->regs_bsh,
+	    uncore->regs_mmio_size);
+	uncore->regs_mmio_size = 0; /* paranoia */
+#else
 	iounmap((void __iomem *)regs);
+#endif
 }
 
 int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
@@ -2547,27 +2548,26 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 		mmio_size = 4 * 1024 * 1024;
 	else if (GRAPHICS_VER(i915) >= 5)
 		mmio_size = 2 * 1024 * 1024;
-<<<<<<< HEAD
-	uncore->regs = pci_iomap(pdev, mmio_bar, mmio_size);
-#ifdef __NetBSD__
-	if (uncore->regs) {
-		KASSERT(pdev->pd_resources[mmio_bar].mapped);
-		uncore->regs_bst = pdev->pd_resources[mmio_bar].bst;
-		uncore->regs_bsh = pdev->pd_resources[mmio_bar].bsh;
-	} else if (agp_i810_borrow(pdev->pd_resources[mmio_bar].addr,
-		mmio_size, &uncore->regs_bsh)) {
-		KASSERT(!pdev->pd_resources[mmio_bar].mapped);
-		uncore->regs_bst = pdev->pd_pa.pa_memt;
-		uncore->regs = bus_space_vaddr(pdev->pd_pa.pa_memt,
-		    uncore->regs_bsh);
-	}
-#endif
-=======
 	else
 		mmio_size = 512 * 1024;
 
+#ifdef __NetBSD__
+	struct pci_dev *const pdev = i915->drm.pdev;
+	const struct pci_attach_args *const pa = &pdev->pd_pa;
+
+	/* XXX errno NetBSD->Linux */
+	uncore->regs_bst = pa->pa_memt;
+	if (bus_space_map(uncore->regs_bst, phys_addr, mmio_size, 0,
+		&uncore->regs_bsh) != 0 &&
+	    !agp_i810_borrow(phys_addr, mmio_size, &uncore->regs_bsh)) {
+		drm_err(&i915->drm, "failed to map registers\n");
+		return -EIO;
+	}
+	uncore->regs_mmio_size = mmio_size;
+
+	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio, uncore);
+#else
 	uncore->regs = ioremap(phys_addr, mmio_size);
->>>>>>> vendor/linux-drm-v6.6.35
 	if (uncore->regs == NULL) {
 		drm_err(&i915->drm, "failed to map registers\n");
 		return -EIO;
@@ -2575,6 +2575,7 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 
 	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio,
 					(void __force *)uncore->regs);
+#endif
 }
 
 void intel_uncore_init_early(struct intel_uncore *uncore,
