@@ -1,4 +1,4 @@
-/*	$NetBSD$	*/
+s/*	$NetBSD$	*/
 
 // SPDX-License-Identifier: MIT
 /*

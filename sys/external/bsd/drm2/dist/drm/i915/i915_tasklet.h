@@ -16,6 +16,8 @@ static inline void tasklet_lock(struct tasklet_struct *t)
 		cpu_relax();
 }
 
+#ifndef __NetBSD__
+
 static inline bool tasklet_is_locked(const struct tasklet_struct *t)
 {
 	return test_bit(TASKLET_STATE_RUN, &t->state);
@@ -41,5 +43,7 @@ static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
 {
 	return test_bit(TASKLET_STATE_SCHED, &t->state);
 }
+
+#endif
 
 #endif /* __I915_TASKLET_H__ */

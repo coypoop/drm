@@ -858,5 +858,8 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 
 void intel_dp_aux_irq_handler(struct drm_i915_private *i915)
 {
-	wake_up_all(&i915->display.gmbus.wait_queue);
+	spin_lock(&i915->display.gmbus.wait_lock);
+	DRM_SPIN_WAKEUP_ALL(&i915->display.gmbus.wait_queue,
+	    &i915->display.gmbus.wait_lock);
+	spin_unlock(&i915->display.gmbus.wait_lock);
 }

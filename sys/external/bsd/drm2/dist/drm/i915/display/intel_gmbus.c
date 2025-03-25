@@ -1078,7 +1078,8 @@ void intel_gmbus_teardown(struct drm_i915_private *i915)
 
 void intel_gmbus_irq_handler(struct drm_i915_private *i915)
 {
-	spin_lock(&i915->gmbus.wait_lock);
-	DRM_SPIN_WAKEUP_ALL(&i915->gmbus.wait_queue, &i915->gmbus.wait_lock);
-	spin_unlock(&i915->gmbus.wait_lock);
+	spin_lock(&i915->display.gmbus.wait_lock);
+	DRM_SPIN_WAKEUP_ALL(&i915->display.gmbus.wait_queue,
+	    &i915->display.gmbus.wait_lock);
+	spin_unlock(&i915->display.gmbus.wait_lock);
 }
