@@ -892,7 +892,6 @@ static void __i915_request_ctor(void *arg)
 	init_llist_head(&rq->execute_cb);
 }
 
-<<<<<<< HEAD
 static void __i915_request_dtor(void *arg)
 {
 	struct i915_request *rq = arg;
@@ -904,13 +903,12 @@ static void __i915_request_dtor(void *arg)
 #endif
 	spin_lock_destroy(&rq->lock);
 }
-=======
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #define clear_batch_ptr(_rq) ((_rq)->batch = NULL)
 #else
 #define clear_batch_ptr(_a) do {} while (0)
 #endif
->>>>>>> vendor/linux-drm-v6.6.35
 
 struct i915_request *
 __i915_request_create(struct intel_context *ce, gfp_t gfp)
@@ -968,26 +966,19 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->execution_mask = ce->engine->mask;
-<<<<<<< HEAD
-
-#ifdef __NetBSD__
-	dma_fence_reset(&rq->fence, &i915_fence_ops, &rq->lock, 0, 0);
-#else
-	kref_init(&rq->fence.refcount);
-	rq->fence.flags = 0;
-	rq->fence.error = 0;
-	INIT_LIST_HEAD(&rq->fence.cb_list);
-#endif
-=======
 	rq->i915 = ce->engine->i915;
->>>>>>> vendor/linux-drm-v6.6.35
 
 	ret = intel_timeline_get_seqno(tl, rq, &seqno);
 	if (ret)
 		goto err_free;
 
+#ifdef __NetBSD__
+	dma_fence_reset(&rq->fence, &i915_fence_ops, &rq->lock,
+	    tl->fence_context, seqno);
+#else
 	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock,
 		       tl->fence_context, seqno);
+#endif
 
 	RCU_INIT_POINTER(rq->timeline, tl);
 	rq->hwsp_seqno = tl->hwsp_seqno;
@@ -1870,9 +1861,17 @@ void __i915_request_queue(struct i915_request *rq,
 	if (attr && rq->engine->sched_engine->schedule)
 		rq->engine->sched_engine->schedule(rq, attr);
 
+#ifdef __NetBSD__
+	const int s = splsoftserial();
+#else
 	local_bh_disable();
+#endif
 	__i915_request_queue_bh(rq);
+#ifdef __NetBSD__
+	splx(s);
+#else
 	local_bh_enable(); /* kick tasklets */
+#endif
 }
 
 void i915_request_add(struct i915_request *rq)
@@ -1894,70 +1893,7 @@ void i915_request_add(struct i915_request *rq)
 		attr = ctx->sched;
 	rcu_read_unlock();
 
-<<<<<<< HEAD
-	if (rcu_access_pointer(rq->context->gem_context))
-		attr = i915_request_gem_context(rq)->sched;
-
-	/*
-	 * Boost actual workloads past semaphores!
-	 *
-	 * With semaphores we spin on one engine waiting for another,
-	 * simply to reduce the latency of starting our work when
-	 * the signaler completes. However, if there is any other
-	 * work that we could be doing on this engine instead, that
-	 * is better utilisation and will reduce the overall duration
-	 * of the current work. To avoid PI boosting a semaphore
-	 * far in the distance past over useful work, we keep a history
-	 * of any semaphore use along our dependency chain.
-	 */
-	if (!(rq->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
-		attr.priority |= I915_PRIORITY_NOSEMAPHORE;
-
-	/*
-	 * Boost priorities to new clients (new request flows).
-	 *
-	 * Allow interactive/synchronous clients to jump ahead of
-	 * the bulk clients. (FQ_CODEL)
-	 */
-	if (list_empty(&rq->sched.signalers_list))
-		attr.priority |= I915_PRIORITY_WAIT;
-
-#ifdef __NetBSD__
-	int s = splsoftserial();
-#else
-	local_bh_disable();
-#endif
 	__i915_request_queue(rq, &attr);
-#ifdef __NetBSD__
-	splx(s);
-#else
-	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
-#endif
-
-	/*
-	 * In typical scenarios, we do not expect the previous request on
-	 * the timeline to be still tracked by timeline->last_request if it
-	 * has been completed. If the completed request is still here, that
-	 * implies that request retirement is a long way behind submission,
-	 * suggesting that we haven't been retiring frequently enough from
-	 * the combination of retire-before-alloc, waiters and the background
-	 * retirement worker. So if the last request on this timeline was
-	 * already completed, do a catch up pass, flushing the retirement queue
-	 * up to this client. Since we have now moved the heaviest operations
-	 * during retirement onto secondary workers, such as freeing objects
-	 * or contexts, retiring a bunch of requests is mostly list management
-	 * (and cache misses), and so we should not be overly penalizing this
-	 * client by performing excess work, though we may still performing
-	 * work on behalf of others -- but instead we should benefit from
-	 * improved resource management. (Well, that's the theory at least.)
-	 */
-	if (prev &&
-	    i915_request_completed(prev) &&
-	    rcu_access_pointer(prev->timeline) == tl)
-		i915_request_retire_upto(prev);
-=======
-	__i915_request_queue(rq, &attr);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	mutex_unlock(&tl->mutex);
 }
@@ -2056,15 +1992,20 @@ static void request_wait_wake(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	struct request_wait *wait = container_of(cb, typeof(*wait), cb);
 
-<<<<<<< HEAD
 #ifdef __NetBSD__
+	/*
+	 * XXX deal with fallout from:
+	 *
+	 * commit 3f6a6f343c57a773ed146e54de8c626f72dd2be7
+	 * Author: Chris Wilson <chris@chris-wilson.co.uk>
+	 * Date:   Thu Jul 16 11:07:54 2020 +0100
+	 *
+	 *     drm/i915: Reduce i915_request.lock contention for i915_request_wait
+	 */
 	DRM_SPIN_WAKEUP_ALL(&wait->wq, fence->lock);
 #else
-	wake_up_process(wait->tsk);
-#endif
-=======
 	wake_up_process(fetch_and_zero(&wait->tsk));
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 }
 
 /**
@@ -2163,7 +2104,24 @@ long i915_request_wait_timeout(struct i915_request *rq,
 	if (dma_fence_add_callback(&rq->fence, &wait.cb, request_wait_wake))
 		goto out;
 
-<<<<<<< HEAD
+	/*
+	 * Flush the submission tasklet, but only if it may help this request.
+	 *
+	 * We sometimes experience some latency between the HW interrupts and
+	 * tasklet execution (mostly due to ksoftirqd latency, but it can also
+	 * be due to lazy CS events), so lets run the tasklet manually if there
+	 * is a chance it may submit this request. If the request is not ready
+	 * to run, as it is waiting for other fences to be signaled, flushing
+	 * the tasklet is busy work without any advantage for this client.
+	 *
+	 * If the HW is being lazy, this is the last chance before we go to
+	 * sleep to catch any pending events. We will check periodically in
+	 * the heartbeat to flush the submission tasklets as a last resort
+	 * for unhappy HW.
+	 */
+	if (i915_request_is_ready(rq))
+		__intel_engine_flush_submission(rq->engine, false);
+
 #ifdef __NetBSD__
 	spin_lock(rq->fence.lock);
 #define	C	(i915_request_completed(rq) ? 1 :			      \
@@ -2189,26 +2147,6 @@ long i915_request_wait_timeout(struct i915_request *rq,
 	}
 	spin_unlock(rq->fence.lock);
 #else
-=======
-	/*
-	 * Flush the submission tasklet, but only if it may help this request.
-	 *
-	 * We sometimes experience some latency between the HW interrupts and
-	 * tasklet execution (mostly due to ksoftirqd latency, but it can also
-	 * be due to lazy CS events), so lets run the tasklet manually if there
-	 * is a chance it may submit this request. If the request is not ready
-	 * to run, as it is waiting for other fences to be signaled, flushing
-	 * the tasklet is busy work without any advantage for this client.
-	 *
-	 * If the HW is being lazy, this is the last chance before we go to
-	 * sleep to catch any pending events. We will check periodically in
-	 * the heartbeat to flush the submission tasklets as a last resort
-	 * for unhappy HW.
-	 */
-	if (i915_request_is_ready(rq))
-		__intel_engine_flush_submission(rq->engine, false);
-
->>>>>>> vendor/linux-drm-v6.6.35
 	for (;;) {
 		set_current_state(state);
 
@@ -2230,16 +2168,23 @@ long i915_request_wait_timeout(struct i915_request *rq,
 	__set_current_state(TASK_RUNNING);
 #endif
 
-<<<<<<< HEAD
-	dma_fence_remove_callback(&rq->fence, &wait.cb);
 #ifdef __NetBSD__
+	/*
+	 * XXX deal with fallout from:
+	 *
+	 * commit 3f6a6f343c57a773ed146e54de8c626f72dd2be7
+	 * Author: Chris Wilson <chris@chris-wilson.co.uk>
+	 * Date:   Thu Jul 16 11:07:54 2020 +0100
+	 *
+	 *     drm/i915: Reduce i915_request.lock contention for i915_request_wait
+	 */
+	dma_fence_remove_callback(&rq->fence, &wait.cb);
 	DRM_DESTROY_WAITQUEUE(&wait.wq);
-#endif
-=======
+#else
 	if (READ_ONCE(wait.tsk))
 		dma_fence_remove_callback(&rq->fence, &wait.cb);
 	GEM_BUG_ON(!list_empty(&wait.cb.node));
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 
 out:
 	mutex_release(&rq->engine->gt->reset.mutex.dep_map, _THIS_IP_);
@@ -2434,38 +2379,16 @@ void i915_request_module_exit(void)
 
 int __init i915_request_module_init(void)
 {
-<<<<<<< HEAD
-	kmem_cache_destroy(global.slab_dependencies);
-	kmem_cache_destroy(global.slab_execute_cbs);
-	kmem_cache_destroy(global.slab_requests);
-}
-
-static struct i915_global_request global = { {
-	.shrink = i915_global_request_shrink,
-	.exit = i915_global_request_exit,
-} };
-
-int __init i915_global_request_init(void)
-{
-	global.slab_requests =
-		kmem_cache_create_dtor("i915_request",
-=======
 	slab_requests =
-		kmem_cache_create("i915_request",
->>>>>>> vendor/linux-drm-v6.6.35
+		kmem_cache_create_dtor("i915_request",
 				  sizeof(struct i915_request),
 				  __alignof__(struct i915_request),
 				  SLAB_HWCACHE_ALIGN |
 				  SLAB_RECLAIM_ACCOUNT |
 				  SLAB_TYPESAFE_BY_RCU,
-<<<<<<< HEAD
 				  __i915_request_ctor,
 				  __i915_request_dtor);
-	if (!global.slab_requests)
-=======
-				  __i915_request_ctor);
 	if (!slab_requests)
->>>>>>> vendor/linux-drm-v6.6.35
 		return -ENOMEM;
 
 	slab_execute_cbs = KMEM_CACHE(execute_cb,
