@@ -16,7 +16,9 @@
 
 #include "i915_gem.h"
 
-<<<<<<< HEAD
+struct drm_mm_node;
+struct ttm_resource;
+
 #ifdef __NetBSD__
 
 struct sgt_iter {
@@ -48,10 +50,6 @@ i915_sg_segment_size(void)
 }
 
 #else
-=======
-struct drm_mm_node;
-struct ttm_resource;
->>>>>>> vendor/linux-drm-v6.6.35
 
 /*
  * Optimised SGL iterator for GEM objects
