@@ -112,29 +112,11 @@ static irqreturn_t vmw_irq_handler(int irq, void *arg)
 	uint32_t status, masked_status;
 	irqreturn_t ret = IRQ_HANDLED;
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	status = bus_space_read_4(dev_priv->iot, dev_priv->ioh,
-	    VMWGFX_IRQSTATUS_PORT);
-#else
-	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-#endif
-	masked_status = status & READ_ONCE(dev_priv->irq_mask);
-
-	if (likely(status))
-#ifdef __NetBSD__
-		bus_space_write_4(dev_priv->iot, dev_priv->ioh,
-		    VMWGFX_IRQSTATUS_PORT, status);
-#else
-		outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-#endif
-=======
 	status = vmw_irq_status_read(dev_priv);
 	masked_status = status & READ_ONCE(dev_priv->irq_mask);
 
 	if (likely(status))
 		vmw_irq_status_write(dev_priv, status);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	if (!status)
 		return IRQ_NONE;
@@ -231,9 +213,6 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	int ret;
 	unsigned long end_jiffies = jiffies + timeout;
 	bool (*wait_condition)(struct vmw_private *, uint32_t);
-#ifndef __NetBSD__
-	DEFINE_WAIT(__wait);
-#endif
 
 	wait_condition = (fifo_idle) ? &vmw_fifo_idle :
 		&vmw_seqno_passed;
@@ -260,7 +239,6 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	ret = 0;
 
 	for (;;) {
-#ifdef __NetBSD__
 		if (!lazy) {
 			if (wait_condition(dev_priv, seqno))
 				break;
@@ -287,56 +265,12 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 			DRM_ERROR("SVGA device lockup.\n");
 			break;
 		}
-#else
-		prepare_to_wait(&dev_priv->fence_queue, &__wait,
-				(interruptible) ?
-				TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-		if (wait_condition(dev_priv, seqno))
-			break;
-		if (time_after_eq(jiffies, end_jiffies)) {
-			DRM_ERROR("SVGA device lockup.\n");
-			break;
-		}
-		if (lazy)
-			schedule_timeout(1);
-		else if ((++count & 0x0F) == 0) {
-			/**
-			 * FIXME: Use schedule_hr_timeout here for
-			 * newer kernels and lower CPU utilization.
-			 */
-
-			__set_current_state(TASK_RUNNING);
-			schedule();
-			__set_current_state((interruptible) ?
-					    TASK_INTERRUPTIBLE :
-					    TASK_UNINTERRUPTIBLE);
-		}
-		if (interruptible && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-#endif
 	}
-#ifndef __NetBSD__
-	finish_wait(&dev_priv->fence_queue, &__wait);
-<<<<<<< HEAD
-#endif
-	if (ret == 0 && fifo_idle) {
-		u32 *fifo_mem = dev_priv->mmio_virt;
-
-		vmw_mmio_write(signal_seq, fifo_mem + SVGA_FIFO_FENCE);
-	}
-#ifdef __NetBSD__
-	DRM_SPIN_WAKEUP_ALL(&dev_priv->fence_queue, &dev_priv->fence_lock);
-	spin_unlock(&dev_priv->fence_lock);
-#else
-=======
 	if (ret == 0 && fifo_idle && fifo_state)
 		vmw_fence_write(dev_priv, signal_seq);
 
->>>>>>> vendor/linux-drm-v6.6.35
-	wake_up_all(&dev_priv->fence_queue);
-#endif
+	DRM_SPIN_WAKEUP_ALL(&dev_priv->fence_queue, &dev_priv->fence_lock);
+	spin_unlock(&dev_priv->fence_lock);
 out_err:
 	if (fifo_down)
 		up_read(&fifo_state->rwsem);
@@ -349,16 +283,7 @@ void vmw_generic_waiter_add(struct vmw_private *dev_priv,
 {
 	spin_lock_bh(&dev_priv->waiter_lock);
 	if ((*waiter_count)++ == 0) {
-<<<<<<< HEAD
-#ifdef __NetBSD__
-		bus_space_write_4(dev_priv->iot, dev_priv->ioh,
-		    VMWGFX_IRQSTATUS_PORT, flag);
-#else
-		outl(flag, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-#endif
-=======
 		vmw_irq_status_write(dev_priv, flag);
->>>>>>> vendor/linux-drm-v6.6.35
 		dev_priv->irq_mask |= flag;
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 	}
@@ -400,83 +325,13 @@ void vmw_goal_waiter_remove(struct vmw_private *dev_priv)
 				  &dev_priv->goal_queue_waiters);
 }
 
-<<<<<<< HEAD
-int vmw_wait_seqno(struct vmw_private *dev_priv,
-		      bool lazy, uint32_t seqno,
-		      bool interruptible, unsigned long timeout)
-{
-	long ret;
-	struct vmw_fifo_state *fifo = &dev_priv->fifo;
-
-	spin_lock(&dev_priv->fence_lock);
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP)) {
-		spin_unlock(&dev_priv->fence_lock);
-		return 0;
-	}
-
-	if (likely(vmw_seqno_passed(dev_priv, seqno))) {
-		spin_unlock(&dev_priv->fence_lock);
-		return 0;
-	}
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
-
-	if (!(fifo->capabilities & SVGA_FIFO_CAP_FENCE)) {
-		spin_unlock(&dev_priv->fence_lock);
-		return vmw_fallback_wait(dev_priv, lazy, true, seqno,
-					 interruptible, timeout);
-	}
-
-	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK)) {
-		spin_unlock(&dev_priv->fence_lock);
-		return vmw_fallback_wait(dev_priv, lazy, false, seqno,
-					 interruptible, timeout);
-	}
-
-	vmw_seqno_waiter_add(dev_priv);
-
-	if (interruptible)
-		DRM_SPIN_TIMED_WAIT_UNTIL(ret, &dev_priv->fence_queue,
-		    &dev_priv->fence_lock, timeout,
-		    vmw_seqno_passed(dev_priv, seqno));
-	else
-		DRM_SPIN_TIMED_WAIT_NOINTR_UNTIL(ret, &dev_priv->fence_queue,
-		    &dev_priv->fence_lock, timeout,
-		    vmw_seqno_passed(dev_priv, seqno));
-
-	vmw_seqno_waiter_remove(dev_priv);
-
-	spin_unlock(&dev_priv->fence_lock);
-
-	if (unlikely(ret == 0))
-		ret = -EBUSY;
-	else if (likely(ret > 0))
-		ret = 0;
-
-	return ret;
-}
-
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 static void vmw_irq_preinstall(struct drm_device *dev)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t status;
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	status = bus_space_read_4(dev_priv->iot, dev_priv->ioh,
-	    VMWGFX_IRQSTATUS_PORT);
-	bus_space_write_4(dev_priv->iot, dev_priv->ioh, VMWGFX_IRQSTATUS_PORT,
-	    status);
-#else
-	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-#endif
-=======
 	status = vmw_irq_status_read(dev_priv);
 	vmw_irq_status_write(dev_priv, status);
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 void vmw_irq_uninstall(struct drm_device *dev)
@@ -491,35 +346,20 @@ void vmw_irq_uninstall(struct drm_device *dev)
 
 	vmw_write(dev_priv, SVGA_REG_IRQMASK, 0);
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	status = bus_space_read_4(dev_priv->iot, dev_priv->ioh,
-	    VMWGFX_IRQSTATUS_PORT);
-	bus_space_write_4(dev_priv->iot, dev_priv->ioh, VMWGFX_IRQSTATUS_PORT,
-	    status);
-#else
-	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-#endif
+	status = vmw_irq_status_read(dev_priv);
+	vmw_irq_status_write(dev_priv, status);
 
-	dev->irq_enabled = false;
 #ifdef __NetBSD__
 	int ret = drm_irq_uninstall(dev);
 	KASSERT(ret == 0);
 	workqueue_destroy(dev_priv->irqthread_wq);
 #else
-	free_irq(dev->irq, dev);
-#endif
-=======
-	status = vmw_irq_status_read(dev_priv);
-	vmw_irq_status_write(dev_priv, status);
-
 	for (i = 0; i < dev_priv->num_irq_vectors; ++i)
 		free_irq(dev_priv->irqs[i], dev);
 
 	pci_free_irq_vectors(pdev);
 	dev_priv->num_irq_vectors = 0;
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 }
 
 /**
@@ -551,25 +391,19 @@ int vmw_irq_install(struct vmw_private *dev_priv)
 
 	vmw_irq_preinstall(dev);
 
-<<<<<<< HEAD
 #ifdef __NetBSD__
 	/* XXX errno NetBSD->Linux */
 	ret = -workqueue_create(&vmw_priv(dev)->irqthread_wq, "vmwgfirq",
 	    vmw_thread_fn, dev, PRI_NONE, IPL_DRM, WQ_MPSAFE);
 	if (ret < 0)
-		return ret;
+		goto done;
 	ret = drm_irq_install(dev);
 	if (ret < 0) {
 		workqueue_destroy(vmw_priv(dev)->irqthread_wq);
 		vmw_priv(dev)->irqthread_wq = NULL;
+		goto done;
 	}
 #else
-	ret = request_threaded_irq(irq, vmw_irq_handler, vmw_thread_fn,
-				   IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
-#endif
-	if (ret < 0)
-		return ret;
-=======
 	for (i = 0; i < nvec; ++i) {
 		ret = pci_irq_vector(pdev, i);
 		if (ret < 0) {
@@ -578,7 +412,6 @@ int vmw_irq_install(struct vmw_private *dev_priv)
 			goto done;
 		}
 		dev_priv->irqs[i] = ret;
->>>>>>> vendor/linux-drm-v6.6.35
 
 		ret = request_threaded_irq(dev_priv->irqs[i], vmw_irq_handler, vmw_thread_fn,
 					   IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
@@ -589,6 +422,7 @@ int vmw_irq_install(struct vmw_private *dev_priv)
 			goto done;
 		}
 	}
+#endif
 
 done:
 	dev_priv->num_irq_vectors = i;

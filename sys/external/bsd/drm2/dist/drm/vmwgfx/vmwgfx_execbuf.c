@@ -29,20 +29,10 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD: vmwgfx_execbuf.c,v 1.5 2022/10/25 23:35:57 riastradh Exp $");
 
-<<<<<<< HEAD
-#include <linux/sync_file.h>
-
 #ifdef __NetBSD__
 #include <sys/filedesc.h>
 #endif
 
-#include "vmwgfx_drv.h"
-#include "vmwgfx_reg.h"
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_placement.h>
-#include "vmwgfx_so.h"
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 #include "vmwgfx_binding.h"
 #include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
@@ -3912,12 +3902,8 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 
 		fence_rep.handle = fence_handle;
 		fence_rep.seqno = fence->base.seqno;
-<<<<<<< HEAD
 		spin_lock(&dev_priv->fence_lock);
-		vmw_update_seqno(dev_priv, &dev_priv->fifo);
-=======
 		vmw_update_seqno(dev_priv);
->>>>>>> vendor/linux-drm-v6.6.35
 		fence_rep.passed_seqno = dev_priv->last_read_seqno;
 		spin_unlock(&dev_priv->fence_lock);
 	}
@@ -3935,25 +3921,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 	 * handle.
 	 */
 	if (unlikely(ret != 0) && (fence_rep.error == 0)) {
-<<<<<<< HEAD
-#ifdef __NetBSD__
-		if (fd_getfile(fence_rep.fd))
-			(void)fd_close(fence_rep.fd);
-#else
-		if (sync_file)
-			fput(sync_file->file);
-
-		if (fence_rep.fd != -1) {
-			put_unused_fd(fence_rep.fd);
-			fence_rep.fd = -1;
-		}
-#endif
-
-		ttm_ref_object_base_unref(vmw_fp->tfile, fence_handle,
-					  TTM_REF_USAGE);
-=======
 		ttm_ref_object_base_unref(vmw_fp->tfile, fence_handle);
->>>>>>> vendor/linux-drm-v6.6.35
 		VMW_DEBUG_USER("Fence copy error. Syncing.\n");
 		(void) vmw_fence_obj_wait(fence, false, false,
 					  VMW_FENCE_WAIT_TIMEOUT);

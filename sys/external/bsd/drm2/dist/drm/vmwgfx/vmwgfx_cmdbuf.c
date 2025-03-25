@@ -38,15 +38,8 @@ __KERNEL_RCSID(0, "$NetBSD: vmwgfx_cmdbuf.c,v 1.7 2022/10/25 23:35:29 riastradh 
 #include <linux/dmapool.h>
 #include <linux/pci.h>
 
-<<<<<<< HEAD
-#include <drm/ttm/ttm_bo_api.h>
-
-#include "vmwgfx_drv.h"
-
 #include <linux/nbsd-namespace.h>
 
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 /*
  * Size of inline command buffers. Try to make sure that a page size is a
  * multiple of the DMA pool allocation size.
@@ -632,15 +625,10 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 
 	/* Send a new fence in case one was removed */
 	if (send_fence) {
-<<<<<<< HEAD
-		vmw_fifo_send_fence(man->dev_priv, &dummy);
+		vmw_cmd_send_fence(man->dev_priv, &dummy);
 		spin_lock(&man->lock);
 		DRM_SPIN_WAKEUP_ALL(&man->idle_queue, &man->lock);
 		spin_unlock(&man->lock);
-=======
-		vmw_cmd_send_fence(man->dev_priv, &dummy);
-		wake_up_all(&man->idle_queue);
->>>>>>> vendor/linux-drm-v6.6.35
 	}
 
 	mutex_unlock(&man->error_mutex);
@@ -1262,7 +1250,6 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 
 	/* First, try to allocate a huge chunk of DMA memory */
 	size = PAGE_ALIGN(size);
-<<<<<<< HEAD
 #ifdef __NetBSD__
 	int error, nseg, alloced = 0,  mapped = 0, loaded = 0;
 
@@ -1300,10 +1287,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 		man->map = NULL;
 	}
 #else
-	man->map = dma_alloc_coherent(&dev_priv->dev->pdev->dev, size,
-=======
 	man->map = dma_alloc_coherent(dev_priv->drm.dev, size,
->>>>>>> vendor/linux-drm-v6.6.35
 				      &man->handle, GFP_KERNEL);
 #endif
 	if (man->map) {
@@ -1380,15 +1364,11 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	man->num_contexts = (dev_priv->capabilities & SVGA_CAP_HP_CMD_QUEUE) ?
 		2 : 1;
 	man->headers = dma_pool_create("vmwgfx cmdbuf",
-<<<<<<< HEAD
 #ifdef __NetBSD__
 				       dev_priv->dev->dmat,
 #else
-				       &dev_priv->dev->pdev->dev,
-#endif
-=======
 				       dev_priv->drm.dev,
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 				       sizeof(SVGACBHeader),
 				       64, PAGE_SIZE);
 	if (!man->headers) {
@@ -1397,15 +1377,11 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	}
 
 	man->dheaders = dma_pool_create("vmwgfx inline cmdbuf",
-<<<<<<< HEAD
 #ifdef __NetBSD__
 					dev_priv->dev->dmat,
 #else
-					&dev_priv->dev->pdev->dev,
-#endif
-=======
 					dev_priv->drm.dev,
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 					sizeof(struct vmw_cmdbuf_dheader),
 					64, PAGE_SIZE);
 	if (!man->dheaders) {
@@ -1465,30 +1441,21 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
 	man->has_pool = false;
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
 	(void) vmw_cmdbuf_idle(man, false, 10*HZ);
-<<<<<<< HEAD
-	if (man->using_mob) {
-		(void) ttm_bo_kunmap(&man->map_obj);
-		ttm_bo_put(man->cmd_space);
-		man->cmd_space = NULL;
-	} else {
+	if (man->using_mob)
+		vmw_bo_unreference(&man->cmd_space);
+	else
 #ifdef __NetBSD__
+	{
 		const bus_dma_tag_t dmat = man->dev_priv->dev->dmat;
 		bus_dmamap_unload(dmat, man->dmamap);
 		bus_dmamem_unmap(dmat, man->map, man->size);
 		bus_dmamem_free(dmat, &man->dmaseg, 1);
 		bus_dmamap_destroy(dmat, man->dmamap);
-#else
-		dma_free_coherent(&man->dev_priv->dev->pdev->dev,
-				  man->size, man->map, man->handle);
-#endif
 	}
-=======
-	if (man->using_mob)
-		vmw_bo_unreference(&man->cmd_space);
-	else
+#else
 		dma_free_coherent(man->dev_priv->drm.dev,
 				  man->size, man->map, man->handle);
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 }
 
 /**

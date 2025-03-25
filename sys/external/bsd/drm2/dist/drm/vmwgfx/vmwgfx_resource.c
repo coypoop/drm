@@ -65,13 +65,9 @@ void vmw_resource_mob_attach(struct vmw_resource *res)
 	}
 
 	rb_link_node(&res->mob_node, parent, new);
-<<<<<<< HEAD
-	rb_insert_color(&res->mob_node, &backup->res_tree);
+	rb_insert_color(&res->mob_node, &gbo->res_tree);
 #endif
 	res->mob_attached = true;
-=======
-	rb_insert_color(&res->mob_node, &gbo->res_tree);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	vmw_bo_prio_add(gbo, res->used_prio);
 }
@@ -86,12 +82,8 @@ void vmw_resource_mob_detach(struct vmw_resource *res)
 
 	dma_resv_assert_held(gbo->tbo.base.resv);
 	if (vmw_resource_mob_attached(res)) {
-<<<<<<< HEAD
 		res->mob_attached = false;
-		rb_erase(&res->mob_node, &backup->res_tree);
-=======
 		rb_erase(&res->mob_node, &gbo->res_tree);
->>>>>>> vendor/linux-drm-v6.6.35
 		RB_CLEAR_NODE(&res->mob_node);
 		vmw_bo_prio_del(gbo, res->used_prio);
 	}

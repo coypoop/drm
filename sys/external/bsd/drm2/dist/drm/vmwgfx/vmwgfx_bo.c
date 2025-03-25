@@ -396,14 +396,10 @@ static int vmw_bo_init(struct vmw_private *dev_priv,
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 
 	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
-<<<<<<< HEAD
-	vmw_bo->base.priority = 3;
+	vmw_bo->tbo.priority = 3;
 #ifdef __NetBSD__
 	rb_tree_init(&vmw_bo->res_tree.rbr_tree, &vmwgfx_res_rb_ops);
 #else
-=======
-	vmw_bo->tbo.priority = 3;
->>>>>>> vendor/linux-drm-v6.6.35
 	vmw_bo->res_tree = RB_ROOT;
 #endif
 

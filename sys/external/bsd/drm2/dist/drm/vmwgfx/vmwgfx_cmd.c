@@ -37,18 +37,9 @@ __KERNEL_RCSID(0, "$NetBSD: vmwgfx_fifo.c,v 1.4 2022/10/25 23:34:06 riastradh Ex
 
 #include <linux/sched/signal.h>
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/vmwgfx/vmwgfx_fifo.c
 #include <linux/nbsd-namespace.h>
 
-struct vmw_temp_set_context {
-	SVGA3dCmdHeader header;
-	SVGA3dCmdDXTempSetContext body;
-};
-
-bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
-=======
 bool vmw_supports_3d(struct vmw_private *dev_priv)
->>>>>>> vendor/linux-drm-v6.6.35:sys/external/bsd/drm2/dist/drm/vmwgfx/vmwgfx_cmd.c
 {
 	uint32_t fifo_min, hwversion;
 	const struct vmw_fifo_state *fifo = dev_priv->fifo;
@@ -215,20 +206,12 @@ static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
 {
 	int ret = 0;
 	unsigned long end_jiffies = jiffies + timeout;
-#ifdef __NetBSD__
+
 	assert_spin_locked(&dev_priv->fifo_lock);
-#else
-	DEFINE_WAIT(__wait);
-#endif
 
 	DRM_INFO("Fifo wait noirq.\n");
 
 	for (;;) {
-#ifndef __NetBSD__
-		prepare_to_wait(&dev_priv->fifo_queue, &__wait,
-				(interruptible) ?
-				TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-#endif
 		if (!vmw_fifo_is_full(dev_priv, bytes))
 			break;
 		if (time_after_eq(jiffies, end_jiffies)) {
@@ -236,7 +219,6 @@ static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
 			DRM_ERROR("SVGA device lockup.\n");
 			break;
 		}
-#ifdef __NetBSD__
 		if (interruptible) {
 			DRM_SPIN_TIMED_WAIT_UNTIL(ret, &dev_priv->fifo_queue,
 			    &dev_priv->fifo_lock, 1,
@@ -256,20 +238,8 @@ static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
 		 * ret=0 means the wait timed out after one tick, so
 		 * try again
 		 */
-#else
-		schedule_timeout(1);
-		if (interruptible && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-#endif
 	}
-#ifdef __NetBSD__
 	DRM_SPIN_WAKEUP_ALL(&dev_priv->fifo_queue, &dev_priv->fifo_lock);
-#else
-	finish_wait(&dev_priv->fifo_queue, &__wait);
-	wake_up_all(&dev_priv->fifo_queue);
-#endif
 	DRM_INFO("Fifo noirq exit.\n");
 	return ret;
 }
@@ -599,16 +569,11 @@ int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 	*fm++ = SVGA_CMD_FENCE;
 	cmd_fence = (struct svga_fifo_cmd_fence *) fm;
 	cmd_fence->fence = *seqno;
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/vmwgfx/vmwgfx_fifo.c
-	vmw_fifo_commit_flush(dev_priv, bytes);
-	(void) vmw_marker_push(&fifo_state->marker_queue, *seqno);
-	spin_lock(&dev_priv->fence_lock);
-	vmw_update_seqno(dev_priv, fifo_state);
-	spin_unlock(&dev_priv->fence_lock);
-=======
 	vmw_cmd_commit_flush(dev_priv, bytes);
+	spin_lock(&dev_priv->fence_lock);
 	vmw_update_seqno(dev_priv);
->>>>>>> vendor/linux-drm-v6.6.35:sys/external/bsd/drm2/dist/drm/vmwgfx/vmwgfx_cmd.c
+	spin_unlock(&dev_priv->fence_lock);
+
 
 out_err:
 	return ret;

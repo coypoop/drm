@@ -59,6 +59,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/module.h>
 #include <linux/hashtable.h>
 
+#include <linux/nbsd-namespace.h>
+
 MODULE_IMPORT_NS(DMA_BUF);
 
 #define VMW_TTM_OBJECT_REF_HT_ORDER 10
@@ -79,24 +81,6 @@ MODULE_IMPORT_NS(DMA_BUF);
  *
  * @refcount: reference/usage count
  */
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/vmwgfx/ttm_object.c
-
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: ttm_object.c,v 1.3 2022/02/17 01:21:02 riastradh Exp $");
-
-#define pr_fmt(fmt) "[TTM] " fmt
-
-#include <drm/ttm/ttm_module.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/slab.h>
-#include <linux/atomic.h>
-#include "ttm_object.h"
-
-#include <linux/nbsd-namespace.h>
-
-=======
->>>>>>> vendor/linux-drm-v6.6.35:sys/external/bsd/drm2/dist/drm/vmwgfx/vmwgfx_ttm_object.c
 struct ttm_object_file {
 	struct ttm_object_device *tdev;
 	spinlock_t lock;

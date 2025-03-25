@@ -37,11 +37,8 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include <linux/sync_file.h>
-<<<<<<< HEAD
-#include <linux/uaccess.h>
-=======
 #include <linux/hashtable.h>
->>>>>>> vendor/linux-drm-v6.6.35
+#include <linux/uaccess.h>
 
 #include <drm/drm_auth.h>
 #include <drm/drm_device.h>
@@ -516,28 +513,26 @@ struct vmw_private {
 	struct ttm_device bdev;
 
 	struct drm_vma_offset_manager vma_manager;
-<<<<<<< HEAD
-	unsigned long vmw_chipset;
-#ifdef __NetBSD__
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-#endif
-	unsigned int io_start;
-	uint32_t vram_start;
-	uint32_t vram_size;
-	uint32_t prim_bb_mem;
-	uint32_t mmio_start;
-	uint32_t mmio_size;
-=======
 	u32 pci_id;
 	resource_size_t io_start;
 	resource_size_t vram_start;
 	resource_size_t vram_size;
 	resource_size_t max_primary_mem;
+#ifdef __NetBSD__
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
+	bus_size_t iosz;
+	bus_space_tag_t rmmiot;
+	bus_space_handle_t rmmioh;
+	bus_space_size_t rmmiosz;
+	bus_space_tag_t fifo_memt;
+	bus_space_handle_t fifo_memh;
+	bus_space_size_t fifo_memsz;
+#else
 	u32 __iomem *rmmio;
+#endif
 	u32 *fifo_mem;
 	resource_size_t fifo_mem_size;
->>>>>>> vendor/linux-drm-v6.6.35
 	uint32_t fb_max_width;
 	uint32_t fb_max_height;
 	uint32_t texture_max_width;
@@ -546,14 +541,6 @@ struct vmw_private {
 	uint32_t stdu_max_height;
 	uint32_t initial_width;
 	uint32_t initial_height;
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	bus_space_tag_t mmio_bst;
-	bus_space_handle_t mmio_bsh;
-#endif
-	u32 *mmio_virt;
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	uint32_t capabilities;
 	uint32_t capabilities2;
 	uint32_t max_gmr_ids;
@@ -736,28 +723,26 @@ static inline bool vmw_is_svga_v3(const struct vmw_private *dev)
 static inline void vmw_write(struct vmw_private *dev_priv,
 			     unsigned int offset, uint32_t value)
 {
-<<<<<<< HEAD
-	spin_lock(&dev_priv->hw_lock);
-#ifdef __NetBSD__
-	bus_space_write_4(dev_priv->iot, dev_priv->ioh, VMWGFX_INDEX_PORT,
-	    offset);
-	bus_space_write_4(dev_priv->iot, dev_priv->ioh, VMWGFX_VALUE_PORT,
-	    value);
-#else
-	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
-	outl(value, dev_priv->io_start + VMWGFX_VALUE_PORT);
-#endif
-	spin_unlock(&dev_priv->hw_lock);
-=======
 	if (vmw_is_svga_v3(dev_priv)) {
+#ifdef __NetBSD__
+		bus_space_write_4(dev_priv->rmmiot, dev_priv->rmmioh, 4*offset,
+		    value);
+#else
 		iowrite32(value, dev_priv->rmmio + offset);
+#endif
 	} else {
 		spin_lock(&dev_priv->hw_lock);
+#ifdef __NetBSD__
+		bus_space_write_4(dev_priv->iot, dev_priv->ioh,
+		    SVGA_INDEX_PORT, offset);
+		bus_space_write_4(dev_priv->iot, dev_priv->ioh,
+		    SVGA_VALUE_PORT, value);
+#else
 		outl(offset, dev_priv->io_start + SVGA_INDEX_PORT);
 		outl(value, dev_priv->io_start + SVGA_VALUE_PORT);
+#endif
 		spin_unlock(&dev_priv->hw_lock);
 	}
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 static inline uint32_t vmw_read(struct vmw_private *dev_priv,
@@ -765,28 +750,26 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 {
 	u32 val;
 
-<<<<<<< HEAD
-	spin_lock(&dev_priv->hw_lock);
-#ifdef __NetBSD__
-	bus_space_write_4(dev_priv->iot, dev_priv->ioh, VMWGFX_INDEX_PORT,
-	    offset);
-	val = bus_space_read_4(dev_priv->iot, dev_priv->ioh,
-	    VMWGFX_VALUE_PORT);
-#else
-	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
-	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
-#endif
-	spin_unlock(&dev_priv->hw_lock);
-=======
 	if (vmw_is_svga_v3(dev_priv)) {
+#ifdef __NetBSD__
+		val = bus_space_read_4(dev_priv->rmmiot, dev_priv->rmmioh,
+		    4*offset);
+#else
 		val = ioread32(dev_priv->rmmio + offset);
+#endif
 	} else {
 		spin_lock(&dev_priv->hw_lock);
+#ifdef __NetBSD__
+		bus_space_write_4(dev_priv->iot, dev_priv->ioh,
+		    SVGA_INDEX_PORT, offset);
+		val = bus_space_read_4(dev_priv->iot, dev_priv->ioh,
+		    SVGA_VALUE_PORT);
+#else
 		outl(offset, dev_priv->io_start + SVGA_INDEX_PORT);
 		val = inl(dev_priv->io_start + SVGA_VALUE_PORT);
+#endif
 		spin_unlock(&dev_priv->hw_lock);
 	}
->>>>>>> vendor/linux-drm-v6.6.35
 
 	return val;
 }
@@ -949,16 +932,6 @@ extern int vmw_present_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 extern int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
-<<<<<<< HEAD
-#ifdef __NetBSD__
-#else
-extern __poll_t vmw_fops_poll(struct file *filp,
-				  struct poll_table_struct *wait);
-extern ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
-			     size_t count, loff_t *offset);
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 
 /**
  * Fifo utilities - vmwgfx_fifo.c
@@ -1004,17 +977,6 @@ static inline uint32_t vmw_fifo_caps(const struct vmw_private *dev_priv)
 		return 0;
 	return dev_priv->fifo->capabilities;
 }
-
-<<<<<<< HEAD
-#ifdef __NetBSD__
-struct uvm_object;
-extern int vmw_mmap_object(struct drm_device *, off_t, size_t, vm_prot_t,
-    struct uvm_object **, voff_t, struct file *);
-#else
-extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 
 /**
  * vmw_is_cursor_bypass3_enabled - Returns TRUE iff Cursor Bypass 3
@@ -1596,7 +1558,12 @@ static inline u32 vmw_irq_status_read(struct vmw_private *vmw)
 	if (vmw_is_svga_v3(vmw))
 		status = vmw_read(vmw, SVGA_REG_IRQ_STATUS);
 	else
+#ifdef __NetBSD__
+		status = bus_space_read_4(vmw->iot, vmw->ioh,
+		    SVGA_IRQSTATUS_PORT);
+#else
 		status = inl(vmw->io_start + SVGA_IRQSTATUS_PORT);
+#endif
 	return status;
 }
 
@@ -1606,7 +1573,12 @@ static inline void vmw_irq_status_write(struct vmw_private *vmw,
 	if (vmw_is_svga_v3(vmw))
 		vmw_write(vmw, SVGA_REG_IRQ_STATUS, status);
 	else
+#ifdef __NetBSD__
+		bus_space_write_4(dev_priv->iot, dev_priv->ioh,
+		    SVGA_IRQSTATUS_PORT, status);
+#else
 		outl(status, vmw->io_start + SVGA_IRQSTATUS_PORT);
+#endif
 }
 
 static inline bool vmw_has_fences(struct vmw_private *vmw)

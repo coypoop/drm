@@ -1,4 +1,4 @@
-/*	$NetBSD: ast_ttm.c,v 1.3 2021/12/18 23:45:27 riastradh Exp $	*/
+/*	$NetBSD$	*/
 
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
@@ -27,13 +27,8 @@
  *
  **************************************************************************/
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/ast/ast_ttm.c
-#include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: ast_ttm.c,v 1.3 2021/12/18 23:45:27 riastradh Exp $");
-=======
 #ifndef _VMWGFX_DEVCAPS_H_
 #define _VMWGFX_DEVCAPS_H_
->>>>>>> vendor/linux-drm-v6.6.35:sys/external/bsd/drm2/dist/drm/vmwgfx/vmwgfx_devcaps.h
 
 #include "vmwgfx_drv.h"
 

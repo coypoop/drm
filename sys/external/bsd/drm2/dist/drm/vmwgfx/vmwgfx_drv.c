@@ -709,19 +709,13 @@ static int vmw_dma_masks(struct vmw_private *dev_priv)
 	ret = drm_limit_dma_space(dev, 0, __BITS(63,0));
 #else
 	ret = dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64));
-<<<<<<< HEAD
 #endif
-	if (dev_priv->map_mode != vmw_dma_phys &&
-	    (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask)) {
-		DRM_INFO("Restricting DMA addresses to 44 bits.\n");
-#ifdef __NetBSD__
-		return drm_limit_dma_space(dev, 0, __BITS(43,0));
-#else
-=======
 	if (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask) {
 		drm_info(&dev_priv->drm,
 			 "Restricting DMA addresses to 44 bits.\n");
->>>>>>> vendor/linux-drm-v6.6.35
+#ifdef __NetBSD__
+		return drm_limit_dma_space(dev, 0, __BITS(43,0));
+#else
 		return dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(44));
 #endif
 	}
@@ -769,6 +763,19 @@ static int vmw_setup_pci_resources(struct vmw_private *dev,
 		drm_info(&dev->drm,
 			"Register MMIO at 0x%pa size is %llu kiB\n",
 			 &rmmio_start, (uint64_t)rmmio_size / 1024);
+#ifdef __NetBSD__
+		/* XXX errno NetBSD->Linux */
+		ret = -bus_space_map(dev->bst, rmmio_start, rmmio_size, 0,
+		    &dev->rmmioh);
+		if (ret) {
+			drm_err(&dev->drm,
+				"Failed mapping registers mmio memory.\n");
+			pci_release_regions(pdev);
+			return -ENOMEM;
+		}
+		dev->rmmiot = dev->bst;
+		dev->rmmiosz = rmmio_size;
+#else
 		dev->rmmio = devm_ioremap(dev->drm.dev,
 					  rmmio_start,
 					  rmmio_size);
@@ -778,6 +785,7 @@ static int vmw_setup_pci_resources(struct vmw_private *dev,
 			pci_release_regions(pdev);
 			return -ENOMEM;
 		}
+#endif
 	} else if (pci_id == VMWGFX_PCI_ID_SVGA2) {
 		dev->io_start = pci_resource_start(pdev, 0);
 		dev->vram_start = pci_resource_start(pdev, 1);
@@ -788,10 +796,25 @@ static int vmw_setup_pci_resources(struct vmw_private *dev,
 		drm_info(&dev->drm,
 			 "FIFO at %pa size is %llu kiB\n",
 			 &fifo_start, (uint64_t)fifo_size / 1024);
+#ifdef __NetBSD__
+		/* XXX errno NetBSD->Linux */
+		ret = -bus_space_map(dev->bst, fifo_start, fifo_size,
+		    BUS_SPACE_MAP_CACHEABLE|BUS_SPACE_MAP_LINEAR,
+		    &dev->fifo_memh);
+		if (ret) {
+			dev->fifo_mem = ERR_PTR(ret);
+		} else {
+			dev->fifo_memt = dev->bst;
+			dev->fifo_memsz = fifo_size;
+			dev->fifo_mem = bus_space_vaddr(dev->fifo_memt,
+			    dev->fifo_memh);
+		}
+#else
 		dev->fifo_mem = devm_memremap(dev->drm.dev,
 					      fifo_start,
 					      fifo_size,
 					      MEMREMAP_WB);
+#endif
 
 		if (IS_ERR(dev->fifo_mem)) {
 			drm_err(&dev->drm,
@@ -1018,14 +1041,9 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	if (unlikely(ret != 0))
 		goto out_err0;
 
-<<<<<<< HEAD
 #ifndef __NetBSD__		/* XXX set bus_dma maxsegsz? */
-	dma_set_max_seg_size(dev->dev, min_t(unsigned int, U32_MAX & PAGE_MASK,
-					     SCATTERLIST_MAX_SEGMENT));
-#endif
-=======
 	dma_set_max_seg_size(dev_priv->drm.dev, U32_MAX);
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 
 	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		drm_info(&dev_priv->drm,
@@ -1034,44 +1052,13 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		drm_info(&dev_priv->drm,
 			 "Max number of GMR pages is %u\n",
 			 (unsigned)dev_priv->max_gmr_pages);
-<<<<<<< HEAD
-		DRM_INFO("Max dedicated hypervisor surface memory is %u kiB\n",
-			 (unsigned)dev_priv->memory_size / 1024);
-	}
-	DRM_INFO("Maximum display memory size is %u kiB\n",
-		 dev_priv->prim_bb_mem / 1024);
-	DRM_INFO("VRAM at 0x%08x size is %u kiB\n",
-		 dev_priv->vram_start, dev_priv->vram_size / 1024);
-	DRM_INFO("MMIO at 0x%08x size is %u kiB\n",
-		 dev_priv->mmio_start, dev_priv->mmio_size / 1024);
-
-#ifdef __NetBSD__
-	dev_priv->mmio_bst = dev->bst;
-	if (bus_space_map(dev_priv->mmio_bst, dev_priv->mmio_start,
-		dev_priv->mmio_size, BUS_SPACE_MAP_LINEAR,
-		&dev_priv->mmio_bsh) == 0) {
-		dev_priv->mmio_virt = bus_space_vaddr(dev_priv->mmio_bst,
-		    dev_priv->mmio_bsh);
-	} else {
-		dev_priv->mmio_virt = NULL;
-	}
-#else
-	dev_priv->mmio_virt = memremap(dev_priv->mmio_start,
-				       dev_priv->mmio_size, MEMREMAP_WB);
-#endif
-
-	if (unlikely(dev_priv->mmio_virt == NULL)) {
-		ret = -ENOMEM;
-		DRM_ERROR("Failed mapping MMIO.\n");
-		goto out_err0;
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	}
 	drm_info(&dev_priv->drm,
 		 "Maximum display memory size is %llu kiB\n",
 		 (uint64_t)dev_priv->max_primary_mem / 1024);
 
 #ifdef __NetBSD__
+#  define	VMWGFX_IOSIZE	0xc	/* XXX */
 	dev_priv->iot = dev->pdev->pd_pa.pa_iot;
 
 	/* XXX errno NetBSD->Linux */
@@ -1079,8 +1066,9 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	    0, &dev_priv->ioh);
 	if (ret) {
 		DRM_ERROR("Failed mapping IO ports.\n");
-		goto out_err3;
+		goto out_err0;
 	}
+	dev_priv->iosz = VMWGFX_IOSIZE;
 #endif
 
 	/* Need mmio memory to check for fifo pitchlock cap. */
@@ -1102,15 +1090,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
-<<<<<<< HEAD
-#ifdef __NetBSD__
-		ret = vmw_irq_install(dev, 0);
-#else
-		ret = vmw_irq_install(dev, dev->pdev->irq);
-#endif
-=======
 		ret = vmw_irq_install(dev_priv);
->>>>>>> vendor/linux-drm-v6.6.35
 		if (ret != 0) {
 			drm_err(&dev_priv->drm,
 				"Failed installing irq: %d\n", ret);
@@ -1124,28 +1104,16 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		goto out_no_fman;
 	}
 
-<<<<<<< HEAD
-	drm_vma_offset_manager_init(&dev_priv->vma_manager,
-				    DRM_FILE_PAGE_OFFSET_START,
-				    DRM_FILE_PAGE_OFFSET_SIZE);
-	ret = ttm_bo_device_init(&dev_priv->bdev,
-				 &vmw_bo_driver,
-#ifdef __NetBSD__
-				 dev->bst,
-				 dev->dmat,
-#else
-				 dev->anon_inode->i_mapping,
-#endif
-				 &dev_priv->vma_manager,
-				 false);
-=======
 	ret = ttm_device_init(&dev_priv->bdev, &vmw_bo_driver,
 			      dev_priv->drm.dev,
+#ifdef __NetBSD__
+			      dev->bst, dev->dmat,
+#else
 			      dev_priv->drm.anon_inode->i_mapping,
+#endif
 			      dev_priv->drm.vma_offset_manager,
 			      dev_priv->map_mode == vmw_dma_alloc_coherent,
 			      false);
->>>>>>> vendor/linux-drm-v6.6.35
 	if (unlikely(ret != 0)) {
 		drm_err(&dev_priv->drm,
 			"Failed initializing TTM buffer object driver.\n");
@@ -1265,20 +1233,12 @@ out_no_fman:
 		vmw_irq_uninstall(&dev_priv->drm);
 out_no_irq:
 	ttm_object_device_release(&dev_priv->tdev);
-<<<<<<< HEAD
-out_err4:
-#ifdef __NetBSD__
-	bus_space_unmap(dev_priv->iot, dev_priv->ioh, VMWGFX_IOSIZE);
-out_err3:
-	dev_priv->mmio_virt = NULL;
-	bus_space_unmap(dev_priv->mmio_bst, dev_priv->mmio_bsh,
-	    dev_priv->mmio_size);
-#else
-	memunmap(dev_priv->mmio_virt);
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 out_err0:
+#ifdef __NetBSD__
+	if (dev_priv->iosz) {
+		bus_space_unmap(dev_priv->iot, dev_priv->ioh, dev_priv->iosz);
+	}
+#endif
 	spin_lock_destroy(&dev_priv->fifo_lock);
 	DRM_DESTROY_WAITQUEUE(&dev_priv->fifo_queue);
 	spin_lock_destroy(&dev_priv->fence_lock);
@@ -1327,18 +1287,6 @@ static void vmw_driver_unload(struct drm_device *dev)
 		vmw_irq_uninstall(&dev_priv->drm);
 
 	ttm_object_device_release(&dev_priv->tdev);
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	dev_priv->mmio_virt = NULL;
-	bus_space_unmap(dev_priv->mmio_bst, dev_priv->mmio_bsh,
-	    dev_priv->mmio_size);
-#else
-	memunmap(dev_priv->mmio_virt);
-#endif
-	if (dev_priv->ctx.staged_bindings)
-		vmw_binding_state_free(dev_priv->ctx.staged_bindings);
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 
 	spin_lock_destroy(&dev_priv->fifo_lock);
 	DRM_DESTROY_WAITQUEUE(&dev_priv->fifo_queue);
@@ -1349,6 +1297,19 @@ static void vmw_driver_unload(struct drm_device *dev)
 		idr_destroy(&dev_priv->res_idr[i]);
 
 	vmw_mksstat_remove_all(dev_priv);
+
+#ifdef __NetBSD__
+	if (dev_priv->fifo_memsz) {
+		bus_space_unmap(dev_priv->fifo_memt, dev_priv->fifo_memh,
+		    dev_priv->fifo_memsz);
+	}
+	if (dev_priv->rmmiosz) {
+		bus_space_unmap(dev_priv->rmmiot, dev_priv->rmmioh,
+		    dev_priv->rmmiosz);
+	}
+	if (dev_priv->iosz)
+		bus_space_unmap(dev_priv->iot, dev_priv->ioh, dev_priv->iosz);
+#endif
 
 	pci_release_regions(pdev);
 }
@@ -1762,13 +1723,9 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.llseek = noop_llseek,
 };
 
-<<<<<<< HEAD
 #endif
 
-static struct drm_driver driver = {
-=======
 static const struct drm_driver driver = {
->>>>>>> vendor/linux-drm-v6.6.35
 	.driver_features =
 	DRIVER_MODESET | DRIVER_RENDER | DRIVER_ATOMIC | DRIVER_GEM | DRIVER_CURSOR_HOTSPOT,
 	.ioctls = vmw_ioctls,
@@ -1862,32 +1819,9 @@ out_error:
 	return ret;
 }
 
-<<<<<<< HEAD
-static int __init vmwgfx_init(void)
-{
-	int ret;
-
-	if (vgacon_text_force())
-		return -EINVAL;
-
-	ret = pci_register_driver(&vmw_pci_driver);
-	if (ret)
-		DRM_ERROR("Failed initializing DRM.\n");
-	return ret;
-}
-
-static void __exit vmwgfx_exit(void)
-{
-	pci_unregister_driver(&vmw_pci_driver);
-}
+drm_module_pci_driver(vmw_pci_driver);
 
 #endif
-
-module_init(vmwgfx_init);
-module_exit(vmwgfx_exit);
-=======
-drm_module_pci_driver(vmw_pci_driver);
->>>>>>> vendor/linux-drm-v6.6.35
 
 MODULE_AUTHOR("VMware Inc. and others");
 MODULE_DESCRIPTION("Standalone drm driver for the VMware SVGA device");
