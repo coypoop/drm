@@ -1601,11 +1601,80 @@ nvkm_device_pci_resource_size(struct nvkm_device *device, unsigned bar)
 	return pci_resource_len(pdev->pdev, bar);
 }
 
+#ifdef __NetBSD__
+static int
+nvkm_device_pci_request_irq(struct nvkm_device *device)
+{
+	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
+	const char *const name = device_xname(pci_dev_dev(pdev->pdev));
+	const struct pci_attach_args *pa = &pdev->pdev->pd_pa;
+	const char *intrstr;
+	char intrbuf[PCI_INTRSTR_LEN];
+	int ret;
+
+	if (pdev->pdev->msi_enabled) {
+		if (pdev->pdev->pd_intr_handles == NULL) {
+			ret = pci_msi_alloc_exact(pa, &pdev->ihp, 1);
+			if (ret) {
+				aprint_error_dev(pci_dev_dev(pdev->pdev),
+				    "couldn't allocate MSI (%s)\n", name);
+				/* XXX errno NetBSD->Linux */
+				return -ret;
+			}
+		} else {
+			pdev->ihp = pdev->pdev->pd_intr_handles;
+			pdev->pdev->pd_intr_handles = NULL;
+		}
+	} else {
+		ret = pci_intx_alloc(pa, &pdev->ihp);
+		if (ret) {
+			aprint_error_dev(pci_dev_dev(pdev->pdev),
+			    "couldn't allocate INTx interrupt (%s)\n",
+			    name);
+
+			/* XXX errno NetBSD->Linux */
+			return -ret;
+		}
+	}
+
+	intrstr = pci_intr_string(pa->pa_pc, pdev->ihp[0],
+	    intrbuf, sizeof(intrbuf));
+	pdev->intrcookie = pci_intr_establish_xname(pa->pa_pc, pdev->ihp[0],
+	    IPL_DRM, nvkm_pci_intr, pci, name);
+	if (pdev->intrcookie == NULL) {
+		aprint_error_dev(pci_dev_dev(pdev->pdev),
+		    "couldn't establish interrupt at %s (%s)\n", intrstr, name);
+		pci_intr_release(pa->pa_pc, pdev->ihp, 1);
+		pdev->ihp = NULL;
+		return -EIO;	/* XXX er? */
+	}
+
+	aprint_normal_dev(pci_dev_dev(pdev->pdev), "interrupting at %s (%s)\n",
+	    intrstr, name);
+}
+
+static void
+nvkm_device_pci_free_irq(struct nvkm_device *device)
+{
+	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
+	const struct pci_attach_args *pa = &pdev->pdev->pd_pa;
+
+	if (pdev->intrcookie != NULL) {
+		pci_intr_disestablish(pa->pa_pc, pdev->intrcookie);
+		pdev->intrcookie = NULL;
+	}
+	if (pdev->ihp != NULL) {
+		pci_intr_release(pa->pa_pc, pdev->ihp, 1);
+		pdev->ihp = NULL;
+	}
+}
+#else
 static int
 nvkm_device_pci_irq(struct nvkm_device *device)
 {
 	return nvkm_device_pci(device)->pdev->irq;
 }
+#endif
 
 static void
 nvkm_device_pci_fini(struct nvkm_device *device, bool suspend)
@@ -1657,8 +1726,11 @@ nvkm_device_pci_func = {
 #ifdef __NetBSD__
 	.dma_tag = nvkm_device_pci_dma_tag,
 	.resource_tag = nvkm_device_pci_resource_tag,
-#endif
+	.request_irq = nvkm_device_pci_request_irq,
+	.free_irq = nvkm_device_pci_free_irq,
+#else
 	.irq = nvkm_device_pci_irq,
+#endif
 	.resource_addr = nvkm_device_pci_resource_addr,
 	.resource_size = nvkm_device_pci_resource_size,
 #ifdef __NetBSD__

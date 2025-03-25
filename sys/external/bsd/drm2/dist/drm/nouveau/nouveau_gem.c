@@ -272,19 +272,11 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	 * to the caller, instead of a normal nouveau_bo ttm reference. */
 	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, size);
 	if (ret) {
-<<<<<<< HEAD
-=======
 		drm_gem_object_release(&nvbo->bo.base);
->>>>>>> vendor/linux-drm-v6.6.35
 		kfree(nvbo);
 		return ret;
 	}
 
-<<<<<<< HEAD
-	ret = nouveau_bo_init(nvbo, size, align, flags, NULL, NULL);
-	if (ret) {
-		/* XXX note: if this fails it kfrees nvbo */
-=======
 	if (resv)
 		dma_resv_lock(resv, NULL);
 
@@ -294,7 +286,6 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 		dma_resv_unlock(resv);
 
 	if (ret)
->>>>>>> vendor/linux-drm-v6.6.35
 		return ret;
 
 	/* we restrict allowed domains on nv50+ to only the types
@@ -306,12 +297,6 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		nvbo->valid_domains &= domain;
 
-<<<<<<< HEAD
-#ifndef __NetBSD__		/* XXX Let TTM swap; skip GEM like radeon.  */
-	nvbo->bo.persistent_swap_storage = nvbo->bo.base.filp;
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	*pnvbo = nvbo;
 	return 0;
 }

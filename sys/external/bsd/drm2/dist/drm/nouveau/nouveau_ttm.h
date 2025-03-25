@@ -19,15 +19,6 @@ struct ttm_tt *nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo,
 
 int  nouveau_ttm_init(struct nouveau_drm *drm);
 void nouveau_ttm_fini(struct nouveau_drm *drm);
-<<<<<<< HEAD
-#ifdef __NetBSD__
-int  nouveau_ttm_mmap_object(struct drm_device *, off_t, size_t, vm_prot_t,
-	    struct uvm_object **, voff_t *, struct file *);
-#else
-int  nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 
 int  nouveau_ttm_global_init(struct nouveau_drm *);
 void nouveau_ttm_global_release(struct nouveau_drm *);

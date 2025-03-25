@@ -110,63 +110,6 @@ nvkm_pci_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 	}
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-    {
-	const char *const name = device_xname(pci_dev_dev(pdev));
-	const struct pci_attach_args *pa = &pdev->pd_pa;
-	const char *intrstr;
-	char intrbuf[PCI_INTRSTR_LEN];
-
-	if (pdev->msi_enabled) {
-		if (pdev->pd_intr_handles == NULL) {
-			if ((ret = pci_msi_alloc_exact(pa, &pci->pci_ihp,
-			    1))) {
-				aprint_error_dev(pci_dev_dev(pdev),
-				    "couldn't allocate MSI (%s)\n", name);
-				/* XXX errno NetBSD->Linux */
-				return -ret;
-			}
-		} else {
-			pci->pci_ihp = pdev->pd_intr_handles;
-			pdev->pd_intr_handles = NULL;
-		}
-	} else {
-		if ((ret = pci_intx_alloc(pa, &pci->pci_ihp))) {
-			aprint_error_dev(pci_dev_dev(pdev),
-			    "couldn't allocate INTx interrupt (%s)\n",
-			    name);
-
-			/* XXX errno NetBSD->Linux */
-			return -ret;
-		}
-	}
-
-	intrstr = pci_intr_string(pa->pa_pc, pci->pci_ihp[0],
-	    intrbuf, sizeof(intrbuf));
-	pci->pci_intrcookie = pci_intr_establish_xname(pa->pa_pc,
-	    pci->pci_ihp[0], IPL_DRM, nvkm_pci_intr, pci,
-	    name);
-	if (pci->pci_intrcookie == NULL) {
-		aprint_error_dev(pci_dev_dev(pdev),
-		    "couldn't establish interrupt at %s (%s)\n", intrstr, name);
-		pci_intr_release(pa->pa_pc, pci->pci_ihp, 1);
-		pci->pci_ihp = NULL;
-		return -EIO;	/* XXX er? */
-	}
-
-	aprint_normal_dev(pci_dev_dev(pdev), "interrupting at %s (%s)\n",
-	    intrstr, name);
-    }
-#else
-	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
-	if (ret)
-		return ret;
-
-	pci->irq = pdev->irq;
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	return 0;
 }
 
@@ -203,30 +146,6 @@ nvkm_pci_dtor(struct nvkm_subdev *subdev)
 
 	nvkm_agp_dtor(pci);
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	const struct pci_attach_args *pa = &pci->pdev->pd_pa;
-	if (pci->pci_intrcookie != NULL) {
-		pci_intr_disestablish(pa->pa_pc, pci->pci_intrcookie);
-		pci->pci_intrcookie = NULL;
-	}
-	if (pci->pci_ihp != NULL) {
-		pci_intr_release(pa->pa_pc, pci->pci_ihp, 1);
-		pci->pci_ihp = NULL;
-	}
-#else
-	if (pci->irq >= 0) {
-		/* freq_irq() will call the handler, we use pci->irq == -1
-		 * to signal that it's been torn down and should be a noop.
-		 */
-		int irq = pci->irq;
-		pci->irq = -1;
-		free_irq(irq, pci);
-	}
-#endif
-
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	if (pci->msi)
 		pci_disable_msi(pci->pdev);
 
@@ -253,12 +172,6 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_pci_func, device, type, inst, &pci->subdev);
 	pci->func = func;
 	pci->pdev = device->func->pci(device)->pdev;
-<<<<<<< HEAD
-#ifndef __NetBSD__
-	pci->irq = -1;
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	pci->pcie.speed = -1;
 	pci->pcie.width = -1;
 

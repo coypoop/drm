@@ -78,10 +78,7 @@ struct nvkm_device {
 		struct list_head intr;
 		struct list_head prio[NVKM_INTR_PRIO_NR];
 		spinlock_t lock;
-#ifdef __NetBSD__
-		pci_intr_handle_t *pci_ihp;
-		void *pci_intrcookie;
-#else
+#ifndef __NetBSD__
 		int irq;
 #endif
 		bool alloc;
@@ -103,8 +100,11 @@ struct nvkm_device_func {
 #ifdef __NetBSD__
 	bus_dma_tag_t (*dma_tag)(struct nvkm_device *);
 	bus_space_tag_t (*resource_tag)(struct nvkm_device *, unsigned bar);
-#endif
+	int (*request_irq)(struct nvkm_device *);
+	void (*free_irq)(struct nvkm_device *);
+#else
 	int (*irq)(struct nvkm_device *);
+#endif
 	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
 	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
 	bool cpu_coherent;

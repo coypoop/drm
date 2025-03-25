@@ -185,37 +185,6 @@ gf100_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan
 		addr |= 4ULL;
 	}
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	/* XXX it is wrong to wait under mutex */
-	if (cold) {
-		uint count = 2000;
-		while (count-- > 0) {
-			if (!(nvkm_rd32(device, 0x00227c) & 0x00100000))
-				break;
-			delay(1000);
-		}
-		if (count == 0)
-			nvkm_error(subdev, "runlist update timeout\n");
-	} else {
-		int ret;
-
-		spin_lock(&fifo->runlist.lock);
-		DRM_SPIN_TIMED_WAIT_NOINTR_UNTIL(ret, &fifo->runlist.wait,
-		    &fifo->runlist.lock, msecs_to_jiffies(2000),
-		    !(nvkm_rd32(device, 0x00227c) & 0x00100000));
-		if (ret == 0)
-			nvkm_error(subdev, "runlist update timeout\n");
-		spin_unlock(&fifo->runlist.lock);
-	}
-#else
-	if (wait_event_timeout(fifo->runlist.wait,
-			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
-			       msecs_to_jiffies(2000)) == 0)
-		nvkm_error(subdev, "runlist update timeout\n");
-#endif
-	mutex_unlock(&subdev->mutex);
-=======
 	nvkm_kmap(chan->inst);
 	nvkm_wo32(chan->inst, ptr0 + 0, lower_32_bits(addr));
 	nvkm_wo32(chan->inst, ptr0 + 4, upper_32_bits(addr));
@@ -252,7 +221,6 @@ gf100_engn_mmu_fault_triggered(struct nvkm_engn *engn)
 		nvkm_mask(device, 0x002140, 0x00000100, 0x00000100);
 	spin_unlock(&fifo->lock);
 	return true;
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 void
@@ -792,16 +760,6 @@ gf100_fifo_intr_runlist(struct nvkm_fifo *fifo)
 	u32 intr = nvkm_rd32(device, 0x002a00);
 
 	if (intr & 0x10000000) {
-<<<<<<< HEAD
-#ifdef __NetBSD__
-		spin_lock(&fifo->runlist.lock);
-		DRM_SPIN_WAKEUP_ONE(&fifo->runlist.wait, &fifo->runlist.lock);
-		spin_unlock(&fifo->runlist.lock);
-#else
-		wake_up(&fifo->runlist.wait);
-#endif
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 		nvkm_wr32(device, 0x002a00, 0x10000000);
 		intr &= ~0x10000000;
 	}
@@ -913,53 +871,7 @@ gf100_fifo_intr(struct nvkm_inth *inth)
 		nvkm_wr32(device, 0x002100, stat);
 	}
 
-<<<<<<< HEAD
-static int
-gf100_fifo_oneinit(struct nvkm_fifo *base)
-{
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
-	int ret;
-
-	/* Determine number of PBDMAs by checking valid enable bits. */
-	nvkm_wr32(device, 0x002204, 0xffffffff);
-	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x002204));
-	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
-
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[0]);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[1]);
-	if (ret)
-		return ret;
-
-#ifdef __NetBSD__
-	spin_lock_init(&fifo->runlist.lock);
-	DRM_INIT_WAITQUEUE(&fifo->runlist.wait, "gf100fifo");
-#else
-	init_waitqueue_head(&fifo->runlist.wait);
-#endif
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
-			      0x1000, false, &fifo->user.mem);
-	if (ret)
-		return ret;
-
-	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
-			   &fifo->user.bar);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
-=======
 	return IRQ_HANDLED;
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 static void
@@ -1000,19 +912,6 @@ gf100_fifo_init(struct nvkm_fifo *fifo)
 static int
 gf100_fifo_runl_ctor(struct nvkm_fifo *fifo)
 {
-<<<<<<< HEAD
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
-	nvkm_memory_unref(&fifo->user.mem);
-	nvkm_memory_unref(&fifo->runlist.mem[0]);
-	nvkm_memory_unref(&fifo->runlist.mem[1]);
-#ifdef __NetBSD__
-	DRM_DESTROY_WAITQUEUE(&fifo->runlist.wait);
-	spin_lock_destroy(&fifo->runlist.lock);
-#endif
-	return fifo;
-=======
 	struct nvkm_runl *runl;
 
 	runl = nvkm_runl_new(fifo, 0, 0, 0);
@@ -1045,7 +944,6 @@ int
 gf100_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
 {
 	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr, &fifo->chid);
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 static const struct nvkm_fifo_func

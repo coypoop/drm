@@ -11,6 +11,8 @@ struct nvkm_device_pci {
 #ifdef __NetBSD__
 	bus_dma_tag_t bus_dmat;
 	bus_dma_tag_t dmat;
+	pci_intr_handle_t *ihp;
+	void *intrcookie;
 #endif
 	bool suspend;
 };

@@ -72,116 +72,6 @@ nvkm_uclient_sclass = {
 	.ctor = nvkm_uclient_new,
 };
 
-<<<<<<< HEAD
-struct nvkm_client_notify {
-	struct nvkm_client *client;
-	struct nvkm_notify n;
-	u8 version;
-	u8 size;
-	union {
-		struct nvif_notify_rep_v0 v0;
-	} rep;
-};
-
-static int
-nvkm_client_notify(struct nvkm_notify *n)
-{
-	struct nvkm_client_notify *notify = container_of(n, typeof(*notify), n);
-	struct nvkm_client *client = notify->client;
-	return client->ntfy(&notify->rep, notify->size, n->data, n->size);
-}
-
-int
-nvkm_client_notify_put(struct nvkm_client *client, int index)
-{
-	if (index < ARRAY_SIZE(client->notify)) {
-		if (client->notify[index]) {
-			nvkm_notify_put(&client->notify[index]->n);
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-
-int
-nvkm_client_notify_get(struct nvkm_client *client, int index)
-{
-	if (index < ARRAY_SIZE(client->notify)) {
-		if (client->notify[index]) {
-			nvkm_notify_get(&client->notify[index]->n);
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-
-int
-nvkm_client_notify_del(struct nvkm_client *client, int index)
-{
-	if (index < ARRAY_SIZE(client->notify)) {
-		if (client->notify[index]) {
-			nvkm_notify_fini(&client->notify[index]->n);
-			kfree(client->notify[index]);
-			client->notify[index] = NULL;
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-
-int
-nvkm_client_notify_new(struct nvkm_object *object,
-		       struct nvkm_event *event, void *data, u32 size)
-{
-	struct nvkm_client *client = object->client;
-	struct nvkm_client_notify *notify;
-	union {
-		struct nvif_notify_req_v0 v0;
-	} *req = data;
-	u8  index, reply;
-	int ret = -ENOSYS;
-
-	for (index = 0; index < ARRAY_SIZE(client->notify); index++) {
-		if (!client->notify[index])
-			break;
-	}
-
-	if (index == ARRAY_SIZE(client->notify))
-		return -ENOSPC;
-
-	notify = kzalloc(sizeof(*notify), GFP_KERNEL);
-	if (!notify)
-		return -ENOMEM;
-
-	nvif_ioctl(object, "notify new size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, true))) {
-		nvif_ioctl(object, "notify new vers %d reply %d route %02x "
-				   "token %"PRIx64"", req->v0.version,
-			   req->v0.reply, req->v0.route, req->v0.token);
-		notify->version = req->v0.version;
-		notify->size = sizeof(notify->rep.v0);
-		notify->rep.v0.version = req->v0.version;
-		notify->rep.v0.route = req->v0.route;
-		notify->rep.v0.token = req->v0.token;
-		reply = req->v0.reply;
-	}
-
-	if (ret == 0) {
-		ret = nvkm_notify_init(object, event, nvkm_client_notify,
-				       false, data, size, reply, &notify->n);
-		if (ret == 0) {
-			client->notify[index] = notify;
-			notify->client = client;
-			return index;
-		}
-	}
-
-	kfree(notify);
-	return ret;
-}
-
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 static const struct nvkm_object_func nvkm_client;
 struct nvkm_client *
 nvkm_client_search(struct nvkm_client *client, u64 handle)
@@ -268,16 +158,10 @@ nvkm_client_fini(struct nvkm_object *object, bool suspend)
 static void *
 nvkm_client_dtor(struct nvkm_object *object)
 {
-<<<<<<< HEAD
 	struct nvkm_client *client = nvkm_client(object);
-	int i;
-	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
-		nvkm_client_notify_del(client, i);
 	spin_lock_destroy(&client->lock);
-	return client;
-=======
+	spin_lock_destroy(&client->obj_lock);
 	return nvkm_client(object);
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 static const struct nvkm_object_func
@@ -342,13 +226,9 @@ nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
 	rb_tree_init(&client->objtree, &nvkm_client_objtree_ops);
 #else
 	client->objroot = RB_ROOT;
-<<<<<<< HEAD
 #endif
-	client->ntfy = ntfy;
-=======
 	spin_lock_init(&client->obj_lock);
 	client->event = event;
->>>>>>> vendor/linux-drm-v6.6.35
 	INIT_LIST_HEAD(&client->umem);
 	spin_lock_init(&client->lock);
 	return 0;

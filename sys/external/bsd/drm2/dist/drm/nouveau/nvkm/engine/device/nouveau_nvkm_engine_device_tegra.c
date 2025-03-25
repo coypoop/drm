@@ -219,6 +219,19 @@ nvkm_device_tegra_resource_size(struct nvkm_device *device, unsigned bar)
 	return res ? resource_size(res) : 0;
 }
 
+#ifdef __NetBSD__
+static int
+nvkm_device_tegra_request_irq(struct nvkm_device *device)
+{
+#  error FIXME: How to establish intr handler on tegra?
+}
+
+static void
+nvkm_device_tegra_free_irq(struct nvkm_device *device)
+{
+#  error FIXME: How to disestablish intr handler on tegra?
+}
+#else
 static int
 nvkm_device_tegra_irq(struct nvkm_device *device)
 {
@@ -226,6 +239,7 @@ nvkm_device_tegra_irq(struct nvkm_device *device)
 
 	return platform_get_irq_byname(tdev->pdev, "stall");
 }
+#endif
 
 static void *
 nvkm_device_tegra_dtor(struct nvkm_device *device)
@@ -242,8 +256,11 @@ nvkm_device_tegra_func = {
 	.dtor = nvkm_device_tegra_dtor,
 #ifdef __NetBSD__
 	.resource_tag = nvkm_device_tegra_resource_tag,
-#endif
+	.request_irq = nvkm_device_tegra_request_irq,
+	.free_irq = nvkm_device_tegra_free_irq,
+#else
 	.irq = nvkm_device_tegra_irq,
+#endif
 	.resource_addr = nvkm_device_tegra_resource_addr,
 	.resource_size = nvkm_device_tegra_resource_size,
 	.cpu_coherent = false,

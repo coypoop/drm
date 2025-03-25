@@ -310,6 +310,8 @@ nvkm_falcon_get(struct nvkm_falcon *falcon, struct nvkm_subdev *user)
 void
 nvkm_falcon_dtor(struct nvkm_falcon *falcon)
 {
+	mutex_destroy(&falcon->dmem_mutex);
+	mutex_destroy(&falcon->mutex);
 }
 
 int
@@ -326,18 +328,3 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	mutex_init(&falcon->dmem_mutex);
 	return 0;
 }
-<<<<<<< HEAD
-
-void
-nvkm_falcon_del(struct nvkm_falcon **pfalcon)
-{
-	if (*pfalcon) {
-		nvkm_falcon_dtor(*pfalcon);
-		mutex_destroy(&(*pfalcon)->mutex);
-		mutex_destroy(&(*pfalcon)->dmem_mutex);
-		kfree(*pfalcon);
-		*pfalcon = NULL;
-	}
-}
-=======
->>>>>>> vendor/linux-drm-v6.6.35

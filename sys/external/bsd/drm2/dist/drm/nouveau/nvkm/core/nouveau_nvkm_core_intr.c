@@ -356,11 +356,15 @@ nvkm_intr_install(struct nvkm_device *device)
 {
 	int ret;
 
+#ifdef __NetBSD__
+	ret = device->func->request_irq(device);
+#else
 	device->intr.irq = device->func->irq(device);
 	if (device->intr.irq < 0)
 		return device->intr.irq;
 
 	ret = request_irq(device->intr.irq, nvkm_intr, IRQF_SHARED, "nvkm", device);
+#endif
 	if (ret)
 		return ret;
 
@@ -380,7 +384,11 @@ nvkm_intr_dtor(struct nvkm_device *device)
 	}
 
 	if (device->intr.alloc)
+#ifdef __NetBSD__
+		device->func->free_irq(device);
+#else
 		free_irq(device->intr.irq, device);
+#endif
 }
 
 void
