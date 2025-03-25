@@ -199,18 +199,11 @@ static void vgt_deballoon_space(struct i915_ggtt *ggtt,
 	if (!drm_mm_node_allocated(node))
 		return;
 
-<<<<<<< HEAD
-	DRM_DEBUG_DRIVER("deballoon space: range [0x%"PRIx64" - 0x%"PRIx64"] %"PRIu64" KiB.\n",
-			 node->start,
-			 node->start + node->size,
-			 node->size / 1024);
-=======
 	drm_dbg(&dev_priv->drm,
-		"deballoon space: range [0x%llx - 0x%llx] %llu KiB.\n",
+		"deballoon space: range [0x%"PRIx64" - 0x%"PRIx64"] %llu KiB.\n",
 		node->start,
 		node->start + node->size,
 		node->size / 1024);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	ggtt->vm.reserved -= node->size;
 	drm_mm_remove_node(node);

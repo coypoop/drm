@@ -49,18 +49,9 @@ __KERNEL_RCSID(0, "$NetBSD: i915_vma.c,v 1.12 2021/12/19 12:27:49 riastradh Exp 
 #include "i915_vma.h"
 #include "i915_vma_resource.h"
 
-<<<<<<< HEAD
 #include <linux/nbsd-namespace.h>
 
-static struct i915_global_vma {
-	struct i915_global base;
-	struct kmem_cache *slab_vmas;
-} global;
-
-struct i915_vma *i915_vma_alloc(void)
-=======
 static inline void assert_vma_held_evict(const struct i915_vma *vma)
->>>>>>> vendor/linux-drm-v6.6.35
 {
 	/*
 	 * We may be forced to unbind when the vm is dead, to clean it up.
@@ -75,17 +66,12 @@ static struct kmem_cache *slab_vmas;
 
 static struct i915_vma *i915_vma_alloc(void)
 {
-<<<<<<< HEAD
-	mutex_destroy(&vma->pages_mutex);
-	return kmem_cache_free(global.slab_vmas, vma);
-=======
 	return kmem_cache_zalloc(slab_vmas, GFP_KERNEL);
 }
 
 static void i915_vma_free(struct i915_vma *vma)
 {
 	return kmem_cache_free(slab_vmas, vma);
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_ERRLOG_GEM) && IS_ENABLED(CONFIG_DRM_DEBUG_MM)
@@ -288,9 +274,6 @@ vma_create(struct drm_i915_gem_object *obj,
 		__set_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
 	}
 
-<<<<<<< HEAD
-	spin_lock(&obj->vma.lock);
-
 #ifdef __NetBSD__
 	__USE(rb);
 	__USE(p);
@@ -298,8 +281,6 @@ vma_create(struct drm_i915_gem_object *obj,
 	collision = rb_tree_insert_node(&obj->vma.tree.rbr_tree, vma);
 	KASSERT(collision == vma);
 #else
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	rb = NULL;
 	p = &obj->vma.tree.rb_node;
 	while (*p) {
@@ -700,19 +681,16 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 		}
 
 		if (unlikely(cmpxchg(&vma->iomap, NULL, ptr))) {
-<<<<<<< HEAD
-#ifdef __NetBSD__
-			io_mapping_unmap(&i915_vm_to_ggtt(vma->vm)->iomap, ptr,
-			    vma->node.size);
-#else
-			io_mapping_unmap(ptr);
-#endif
-=======
 			if (page_unmask_bits(ptr))
 				__i915_gem_object_release_map(vma->obj);
 			else
+#ifdef __NetBSD__
+				io_mapping_unmap(
+				    &i915_vm_to_ggtt(vma->vm)->iomap, ptr,
+				    vma->node.size);
+#else
 				io_mapping_unmap(ptr);
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 			ptr = vma->iomap;
 		}
 	}
@@ -929,17 +907,10 @@ i915_vma_insert(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	 * aperture has, reject it early before evicting everything in a vain
 	 * attempt to find space.
 	 */
-<<<<<<< HEAD
-	if (size > end) {
-		DRM_DEBUG("Attempting to bind an object larger than the aperture: request=%"PRIu64" > %s aperture=%"PRIu64"\n",
-			  size, flags & PIN_MAPPABLE ? "mappable" : "total",
-			  end);
-=======
 	if (size > end - 2 * guard) {
 		drm_dbg(vma->obj->base.dev,
-			"Attempting to bind an object larger than the aperture: request=%llu > %s aperture=%llu\n",
+			"Attempting to bind an object larger than the aperture: request=%"PRIu64" > %s aperture=%"PRIu64"\n",
 			size, flags & PIN_MAPPABLE ? "mappable" : "total", end);
->>>>>>> vendor/linux-drm-v6.6.35
 		return -ENOSPC;
 	}
 
@@ -2103,19 +2074,15 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 	if (vma->iomap == NULL)
 		return;
 
-<<<<<<< HEAD
-#ifdef __NetBSD__
-	io_mapping_unmap(&i915_vm_to_ggtt(vma->vm)->iomap, vma->iomap,
-	    vma->node.size);
-#else
-	io_mapping_unmap(vma->iomap);
-#endif
-=======
 	if (page_unmask_bits(vma->iomap))
 		__i915_gem_object_release_map(vma->obj);
 	else
+#ifdef __NetBSD__
+		io_mapping_unmap(&i915_vm_to_ggtt(vma->vm)->iomap, vma->iomap,
+		    vma->node.size);
+#else
 		io_mapping_unmap(vma->iomap);
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 	vma->iomap = NULL;
 }
 
