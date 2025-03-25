@@ -11,15 +11,10 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
-<<<<<<< HEAD:sys/external/bsd/drm2/dist/drm/i915/intel_sideband.h
+#include "vlv_sideband_reg.h"
+
 #include <sys/file.h>
 #define	pipe	pipe_drmhack	/* see intel_display.h */
-
-struct drm_i915_private;
-enum pipe;
-=======
-#include "vlv_sideband_reg.h"
->>>>>>> vendor/linux-drm-v6.6.35:sys/external/bsd/drm2/dist/drm/i915/vlv_sideband.h
 
 enum pipe;
 struct drm_i915_private;
