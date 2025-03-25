@@ -329,18 +329,10 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.has_rc6p = 1, \
 	.has_reset_engine = true, \
 	.has_rps = true, \
-<<<<<<< HEAD
-	.ppgtt_type = INTEL_PPGTT_ALIASING, \
-	.ppgtt_size = 31, \
-	IVB_PIPE_OFFSETS, \
-	IVB_CURSOR_OFFSETS, \
-	IVB_COLORS, \
-=======
 	.dma_mask_size = 40, \
 	.max_pat_index = 3, \
 	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.__runtime.ppgtt_size = 31, \
->>>>>>> vendor/linux-drm-v6.6.35
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS, \
 	LEGACY_CACHELEVEL
@@ -391,17 +383,10 @@ static const struct intel_device_info vlv_info = {
 	.has_rc6 = 1,
 	.has_reset_engine = true,
 	.has_rps = true,
-<<<<<<< HEAD
-	.display.has_gmch = 1,
-	.display.has_hotplug = 1,
-	.ppgtt_type = INTEL_PPGTT_ALIASING,
-	.ppgtt_size = 31,
-=======
 	.dma_mask_size = 40,
 	.max_pat_index = 3,
 	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.__runtime.ppgtt_size = 31,
->>>>>>> vendor/linux-drm-v6.6.35
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
@@ -1030,6 +1015,8 @@ bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
 	return true;
 }
 
+#ifndef __NetBSD__
+
 static bool intel_mmio_bar_valid(struct pci_dev *pdev, struct intel_device_info *intel_info)
 {
 	return i915_pci_resource_valid(pdev, intel_mmio_bar(intel_info->__runtime.graphics.ip.ver));
@@ -1071,22 +1058,12 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-<<<<<<< HEAD
-#ifndef __NetBSD__		/* XXX vga switcheroo */
-	/*
-	 * apple-gmux is needed on dual GPU MacBook Pro
-	 * to probe the panel if we're the inactive GPU.
-	 */
-	if (vga_switcheroo_client_probe_defer(pdev))
-=======
 	if (!intel_mmio_bar_valid(pdev, intel_info))
 		return -ENXIO;
 
 	/* Detect if we need to wait for other drivers early on */
 	if (intel_display_driver_probe_defer(pdev))
->>>>>>> vendor/linux-drm-v6.6.35
 		return -EPROBE_DEFER;
-#endif
 
 	err = i915_driver_probe(pdev, ent);
 	if (err)
@@ -1112,9 +1089,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 }
 
-<<<<<<< HEAD
-#ifndef __NetBSD__
-=======
 static void i915_pci_shutdown(struct pci_dev *pdev)
 {
 	struct drm_i915_private *i915 = pci_get_drvdata(pdev);
@@ -1122,7 +1096,6 @@ static void i915_pci_shutdown(struct pci_dev *pdev)
 	i915_driver_shutdown(i915);
 }
 
->>>>>>> vendor/linux-drm-v6.6.35
 static struct pci_driver i915_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
@@ -1131,7 +1104,6 @@ static struct pci_driver i915_pci_driver = {
 	.shutdown = i915_pci_shutdown,
 	.driver.pm = &i915_pm_ops,
 };
-#endif
 
 int i915_pci_register_driver(void)
 {
@@ -1142,17 +1114,5 @@ void i915_pci_unregister_driver(void)
 {
 	pci_unregister_driver(&i915_pci_driver);
 }
-<<<<<<< HEAD
-
-module_init(i915_init);
-module_exit(i915_exit);
 
 #endif
-
-MODULE_AUTHOR("Tungsten Graphics, Inc.");
-MODULE_AUTHOR("Intel Corporation");
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");
-=======
->>>>>>> vendor/linux-drm-v6.6.35

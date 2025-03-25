@@ -236,23 +236,7 @@ i915_param_named_unsafe(lmem_bar_size, uint, 0400,
 static void _param_print_bool(struct drm_printer *p, const char *name,
 			      bool val)
 {
-<<<<<<< HEAD
-	if (!__builtin_strcmp(type, "bool"))
-		drm_printf(p, "i915.%s=%s\n", name, yesno(*(const bool *)x));
-	else if (!__builtin_strcmp(type, "int"))
-		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
-	else if (!__builtin_strcmp(type, "unsigned int"))
-		drm_printf(p, "i915.%s=%u\n", name, *(const unsigned int *)x);
-	else if (!__builtin_strcmp(type, "unsigned long"))
-		drm_printf(p, "i915.%s=%lu\n", name, *(const unsigned long *)x);
-	else if (!__builtin_strcmp(type, "char *"))
-		drm_printf(p, "i915.%s=%s\n", name, *(const char *const *)x);
-	else
-		WARN_ONCE(1, "no printer defined for param type %s (i915.%s)\n",
-			  type, name);
-=======
 	drm_printf(p, "i915.%s=%s\n", name, str_yes_no(val));
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 static void _param_print_int(struct drm_printer *p, const char *name,

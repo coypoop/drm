@@ -66,12 +66,14 @@ bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 {
 	struct drm_privacy_screen *privacy_screen;
 
+#ifndef __NetBSD__		/* XXX vga switcheroo */
 	/*
 	 * apple-gmux is needed on dual GPU MacBook Pro
 	 * to probe the panel if we're the inactive GPU.
 	 */
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return true;
+#endif
 
 	/* If the LCD panel has a privacy-screen, wait for it */
 	privacy_screen = drm_privacy_screen_get(&pdev->dev, NULL);

@@ -92,12 +92,8 @@ struct i915_oa_config {
 #ifndef __NetBSD__		/* XXX sysfs */
 	struct attribute_group sysfs_metric;
 	struct attribute *attrs[2];
-<<<<<<< HEAD
-	struct device_attribute sysfs_metric_id;
-#endif
-=======
 	struct kobj_attribute sysfs_metric_id;
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 
 	struct kref ref;
 	struct rcu_head rcu;

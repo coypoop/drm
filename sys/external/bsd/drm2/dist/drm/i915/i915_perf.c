@@ -554,20 +554,12 @@ static void oa_context_id_squash(struct i915_perf_stream *stream, u32 *report)
  */
 static bool oa_buffer_check(struct i915_perf_stream *stream)
 {
-<<<<<<< HEAD
-	int report_size = stream->oa_buffer.format_size;
-	unsigned int aged_idx;
-	u32 head, hw_tail, aged_tail, aging_tail;
-	u64 now;
-=======
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
 	int report_size = stream->oa_buffer.format->size;
 	u32 head, tail, read_tail;
-	unsigned long flags;
 	bool pollin;
 	u32 hw_tail;
 	u32 partial_report_size;
->>>>>>> vendor/linux-drm-v6.6.35
 
 	/* We have to consider the (unlikely) possibility that read() errors
 	 * could result in an OA buffer reset which might reset the head and
@@ -627,14 +619,8 @@ static bool oa_buffer_check(struct i915_perf_stream *stream)
 	pollin = OA_TAKEN(stream->oa_buffer.tail,
 			  stream->oa_buffer.head) >= report_size;
 
-<<<<<<< HEAD
 	return aged_tail == INVALID_TAIL_PTR ?
 		false : OA_TAKEN(aged_tail, head) >= report_size;
-=======
-	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
-
-	return pollin;
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 /**
@@ -735,31 +721,41 @@ static int append_oa_sample(struct i915_perf_stream *stream,
 	buf += sizeof(header);
 #endif
 
-<<<<<<< HEAD
-	if (sample_flags & SAMPLE_OA_REPORT) {
-#ifdef __NetBSD__
-		ret = -uiomove(__UNCONST(report), report_size, buf);
-		if (ret)
-			return ret;
-#else
-		if (copy_to_user(buf, report, report_size))
-			return -EFAULT;
-#endif
-=======
 	oa_buf_end = stream->oa_buffer.vaddr + OA_BUFFER_SIZE;
 	report_size_partial = oa_buf_end - report;
 
 	if (report_size_partial < report_size) {
+#ifdef __NetBSD__
+		/* XXX errno NetBSD->Linux */
+		ret = -uiomove(__UNCONST(report), report_size_partial, buf);
+		if (ret)
+			return ret;
+#else
 		if (copy_to_user(buf, report, report_size_partial))
 			return -EFAULT;
 		buf += report_size_partial;
+#endif
 
+#ifdef __NetBSD__
+		/* XXX errno NetBSD->Linux */
+		ret = -uiomove(__UNCONST(stream->oa_buffer.vaddr),
+		    report_size - report_size_partial, buf);
+		if (ret)
+			return ret;
+#else
 		if (copy_to_user(buf, stream->oa_buffer.vaddr,
 				 report_size - report_size_partial))
 			return -EFAULT;
+#endif
+#ifdef __NetBSD__
+	/* XXX errno NetBSD->Linux */
+	} else if ((ret = -uiomove(__UNCONST(report), report_size, buf))
+	    != 0) {
+		return ret;
+#else
 	} else if (copy_to_user(buf, report, report_size)) {
 		return -EFAULT;
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 	}
 
 #ifndef __NetBSD__		/* done by uiomove */
@@ -3630,63 +3626,6 @@ void i915_oa_init_reg_state(const struct intel_context *ce,
 }
 
 /**
-<<<<<<< HEAD
- * i915_perf_read_locked - &i915_perf_stream_ops->read with error normalisation
- * @stream: An i915 perf stream
- * @file: An i915 perf stream file
- * @buf: destination buffer given by userspace
- * @count: the number of bytes userspace wants to read
- * @ppos: (inout) file seek position (unused)
- *
- * Besides wrapping &i915_perf_stream_ops->read this provides a common place to
- * ensure that if we've successfully copied any data then reporting that takes
- * precedence over any internal error status, so the data isn't lost.
- *
- * For example ret will be -ENOSPC whenever there is more buffered data than
- * can be copied to userspace, but that's only interesting if we weren't able
- * to copy some data because it implies the userspace buffer is too small to
- * receive a single record (and we never split records).
- *
- * Another case with ret == -EFAULT is more of a grey area since it would seem
- * like bad form for userspace to ask us to overrun its buffer, but the user
- * knows best:
- *
- *   http://yarchive.net/comp/linux/partial_reads_writes.html
- *
- * Returns: The number of bytes copied or a negative error code on failure.
- */
-#ifdef __NetBSD__
-static int i915_perf_read_locked(struct i915_perf_stream *stream,
-				     struct file *file,
-				     struct uio *buf,
-				     kauth_cred_t count, /* XXX dummy */
-				     int ppos)		 /* XXX dummy */
-{
-	return stream->ops->read(stream, buf, count, ppos);
-}
-#else
-static ssize_t i915_perf_read_locked(struct i915_perf_stream *stream,
-				     struct file *file,
-				     char __user *buf,
-				     size_t count,
-				     loff_t *ppos)
-{
-	/* Note we keep the offset (aka bytes read) separate from any
-	 * error status so that the final check for whether we return
-	 * the bytes read with a higher precedence than any error (see
-	 * comment below) doesn't need to be handled/duplicated in
-	 * stream->ops->read() implementations.
-	 */
-	size_t offset = 0;
-	int ret = stream->ops->read(stream, buf, count, &offset);
-
-	return offset ?: (ret ?: -EAGAIN);
-}
-#endif
-
-/**
-=======
->>>>>>> vendor/linux-drm-v6.6.35
  * i915_perf_read - handles read() FOP for i915 perf stream FDs
  * @file: An i915 perf stream file
  * @buf: destination buffer given by userspace
@@ -3709,7 +3648,7 @@ static int i915_perf_read(struct file *file,
 			  off_t *offset,
 			  struct uio *buf,
 			  kauth_cred_t count, /* XXX dummy */
-			  int ppos)	      /* XXX dummy */
+			  int ioflag)
 #else
 static ssize_t i915_perf_read(struct file *file,
 			      char __user *buf,
@@ -3721,25 +3660,24 @@ static ssize_t i915_perf_read(struct file *file,
 	struct i915_perf_stream *stream = file->f_data;
 #else
 	struct i915_perf_stream *stream = file->private_data;
-<<<<<<< HEAD
 #endif
-	struct i915_perf *perf = stream->perf;
-	ssize_t ret;
-=======
 	size_t offset = 0;
 	int ret;
->>>>>>> vendor/linux-drm-v6.6.35
 
 	/* To ensure it's handled consistently we simply treat all reads of a
 	 * disabled stream as an error. In particular it might otherwise lead
 	 * to a deadlock for blocking file descriptors...
 	 */
 	if (!stream->enabled || !(stream->sample_flags & SAMPLE_OA_REPORT))
+#ifdef __NetBSD__
+		return EIO;
+#else
 		return -EIO;
+#endif
 
 #ifdef __NetBSD__
-	buf->uio_offset = *offset;
-	if (!(file->f_flag & FNONBLOCK))
+	buf->uio_offset = 0;
+	if (!(ioflag & IO_NDELAY))
 #else
 	if (!(file->f_flags & O_NONBLOCK))
 #endif
@@ -3754,15 +3692,29 @@ static ssize_t i915_perf_read(struct file *file,
 		do {
 			ret = stream->ops->wait_unlocked(stream);
 			if (ret)
+#ifdef __NetBSD__
+				return -ret; /* XXX errno Linux->NetBSD */
+#else
 				return ret;
+#endif
 
 			mutex_lock(&stream->lock);
+#ifdef __NetBSD__
+			ret = stream->ops->read(stream, buf, count, ioflag);
+			offset = buf->uio_offset;
+#else
 			ret = stream->ops->read(stream, buf, count, &offset);
+#endif
 			mutex_unlock(&stream->lock);
 		} while (!offset && !ret);
 	} else {
 		mutex_lock(&stream->lock);
+#ifdef __NetBSD__
+		ret = stream->ops->read(stream, buf, count, ioflag);
+		offset = buf->uio_offset;
+#else
 		ret = stream->ops->read(stream, buf, count, &offset);
+#endif
 		mutex_unlock(&stream->lock);
 	}
 
@@ -3781,7 +3733,11 @@ static ssize_t i915_perf_read(struct file *file,
 		stream->pollin = false;
 
 	/* Possible values for ret are 0, -EFAULT, -ENOSPC, -EIO, ... */
+#ifdef __NetBSD__
+	return (offset ? 0 : -ret); /* XXX errno Linux->NetBSD */
+#else
 	return offset ?: (ret ?: -EAGAIN);
+#endif
 }
 
 static enum hrtimer_restart oa_poll_check_timer_cb(struct hrtimer *hrtimer)
@@ -4026,11 +3982,7 @@ static long i915_perf_ioctl(struct file *file,
 	struct i915_perf_stream *stream = file->f_data;
 #else
 	struct i915_perf_stream *stream = file->private_data;
-<<<<<<< HEAD
 #endif
-	struct i915_perf *perf = stream->perf;
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 	long ret;
 
 	mutex_lock(&stream->lock);
@@ -4077,25 +4029,21 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
  */
 #ifdef __NetBSD__
 static int i915_perf_close(struct file *fp)
-{
-	struct i915_perf_stream *stream = fp->f_data;
-	struct i915_perf *perf = stream->perf;
-
-	mutex_lock(&perf->lock);
-	i915_perf_destroy_locked(stream);
-	mutex_unlock(&perf->lock);
-
-	/* Release the reference the perf stream kept on the driver. */
-	drm_dev_put(&perf->i915->drm);
-
-	return 0;
-}
 #else
 static int i915_perf_release(struct inode *inode, struct file *file)
+#endif
 {
+#ifdef __NetBSD__
+	struct i915_perf_stream *stream = fp->f_data;
+#else
 	struct i915_perf_stream *stream = file->private_data;
+#endif
 	struct i915_perf *perf = stream->perf;
 	struct intel_gt *gt = stream->engine->gt;
+
+	mutex_lock(&gt->perf.lock);
+	i915_perf_destroy_locked(stream);
+	mutex_unlock(&gt->perf.lock);
 
 	/*
 	 * Within this call, we know that the fd is being closed and we have no
@@ -4111,8 +4059,6 @@ static int i915_perf_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
-#endif
-
 
 #ifdef __NetBSD__
 static int
@@ -4449,23 +4395,14 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			break;
 		case DRM_I915_PERF_PROP_OA_FORMAT:
 			if (value == 0 || value >= I915_OA_FORMAT_MAX) {
-<<<<<<< HEAD
-				DRM_DEBUG("Out-of-range OA report format %"PRIu64"\n",
-					  value);
-				return -EINVAL;
-			}
-			if (!perf->oa_formats[value].size) {
-				DRM_DEBUG("Unsupported OA report format %"PRIu64"\n",
-=======
 				drm_dbg(&perf->i915->drm,
-					"Out-of-range OA report format %llu\n",
+					"Out-of-range OA report format %"PRIu64"\n",
 					  value);
 				return -EINVAL;
 			}
 			if (!oa_format_valid(perf, value)) {
 				drm_dbg(&perf->i915->drm,
-					"Unsupported OA report format %llu\n",
->>>>>>> vendor/linux-drm-v6.6.35
+					"Unsupported OA report format %"PRIu64"\n",
 					  value);
 				return -EINVAL;
 			}
@@ -4501,15 +4438,9 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			} else
 				oa_freq_hz = 0;
 
-<<<<<<< HEAD
-			if (oa_freq_hz > i915_oa_max_sample_rate &&
-			    !capable(CAP_SYS_ADMIN)) {
-				DRM_DEBUG("OA exponent would exceed the max sampling frequency (sysctl hw.drm2.i915.oa_max_sample_rate) %uHz without root privileges\n",
-=======
 			if (oa_freq_hz > i915_oa_max_sample_rate && !perfmon_capable()) {
 				drm_dbg(&perf->i915->drm,
-					"OA exponent would exceed the max sampling frequency (sysctl dev.i915.oa_max_sample_rate) %uHz without CAP_PERFMON or CAP_SYS_ADMIN privileges\n",
->>>>>>> vendor/linux-drm-v6.6.35
+					"OA exponent would exceed the max sampling frequency (sysctl hw.drm2.i915.oa_max_sample_rate) %uHz without root privileges\n",
 					  i915_oa_max_sample_rate);
 				return -EACCES;
 			}
@@ -4692,7 +4623,6 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
  */
 void i915_perf_register(struct drm_i915_private *i915)
 {
-#ifndef __NetBSD__
 	struct i915_perf *perf = &i915->perf;
 	struct intel_gt *gt = to_gt(i915);
 
@@ -4709,75 +4639,9 @@ void i915_perf_register(struct drm_i915_private *i915)
 	perf->metrics_kobj =
 		kobject_create_and_add("metrics",
 				       &i915->drm.primary->kdev->kobj);
-
-<<<<<<< HEAD
-	sysfs_attr_init(&perf->test_config.sysfs_metric_id.attr);
 #endif
 
-	if (IS_TIGERLAKE(i915)) {
-		i915_perf_load_test_config_tgl(i915);
-	} else if (INTEL_GEN(i915) >= 11) {
-		i915_perf_load_test_config_icl(i915);
-	} else if (IS_CANNONLAKE(i915)) {
-		i915_perf_load_test_config_cnl(i915);
-	} else if (IS_COFFEELAKE(i915)) {
-		if (IS_CFL_GT2(i915))
-			i915_perf_load_test_config_cflgt2(i915);
-		if (IS_CFL_GT3(i915))
-			i915_perf_load_test_config_cflgt3(i915);
-	} else if (IS_GEMINILAKE(i915)) {
-		i915_perf_load_test_config_glk(i915);
-	} else if (IS_KABYLAKE(i915)) {
-		if (IS_KBL_GT2(i915))
-			i915_perf_load_test_config_kblgt2(i915);
-		else if (IS_KBL_GT3(i915))
-			i915_perf_load_test_config_kblgt3(i915);
-	} else if (IS_BROXTON(i915)) {
-		i915_perf_load_test_config_bxt(i915);
-	} else if (IS_SKYLAKE(i915)) {
-		if (IS_SKL_GT2(i915))
-			i915_perf_load_test_config_sklgt2(i915);
-		else if (IS_SKL_GT3(i915))
-			i915_perf_load_test_config_sklgt3(i915);
-		else if (IS_SKL_GT4(i915))
-			i915_perf_load_test_config_sklgt4(i915);
-	} else if (IS_CHERRYVIEW(i915)) {
-		i915_perf_load_test_config_chv(i915);
-	} else if (IS_BROADWELL(i915)) {
-		i915_perf_load_test_config_bdw(i915);
-	} else if (IS_HASWELL(i915)) {
-		i915_perf_load_test_config_hsw(i915);
-	}
-
-	if (perf->test_config.id == 0)
-		goto sysfs_error;
-
-#ifdef __NetBSD__		/* XXX i915 sysfs */
-	__USE(ret);
-#else
-	ret = sysfs_create_group(perf->metrics_kobj,
-				 &perf->test_config.sysfs_metric);
-	if (ret)
-		goto sysfs_error;
-#endif
-
-	perf->test_config.perf = perf;
-	kref_init(&perf->test_config.ref);
-
-	goto exit;
-
-sysfs_error:
-#ifndef __NetBSD__
-	kobject_put(perf->metrics_kobj);
-	perf->metrics_kobj = NULL;
-#endif
-
-exit:
-	mutex_unlock(&perf->lock);
-#endif
-=======
 	mutex_unlock(&gt->perf.lock);
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 /**
@@ -5051,14 +4915,9 @@ addr_err:
 	return ERR_PTR(err);
 }
 
-<<<<<<< HEAD
 #ifndef __NetBSD__		/* XXX i915 sysfs */
-static ssize_t show_dynamic_id(struct device *dev,
-			       struct device_attribute *attr,
-=======
 static ssize_t show_dynamic_id(struct kobject *kobj,
 			       struct kobj_attribute *attr,
->>>>>>> vendor/linux-drm-v6.6.35
 			       char *buf)
 {
 	struct i915_oa_config *oa_config =
@@ -5711,14 +5570,10 @@ static int destroy_config(int id, void *p, void *data)
 
 int i915_perf_sysctl_register(void)
 {
-<<<<<<< HEAD
 #ifndef __NetBSD__		/* XXX i915 perf sysctl */
-	sysctl_header = register_sysctl_table(dev_root);
-#endif
-=======
 	sysctl_header = register_sysctl("dev/i915", oa_table);
+#endif
 	return 0;
->>>>>>> vendor/linux-drm-v6.6.35
 }
 
 void i915_perf_sysctl_unregister(void)
@@ -5741,15 +5596,13 @@ void i915_perf_fini(struct drm_i915_private *i915)
 	if (!perf->i915)
 		return;
 
-<<<<<<< HEAD
 	if (perf->ops.enable_metric_set) {
 		mutex_destroy(&perf->metrics_lock);
-		mutex_destroy(&perf->lock);
+		for_each_gt(gt, perf->i915, i)
+			mutex_destroy(&gt->perf.lock);
 	}
-=======
 	for_each_gt(gt, perf->i915, i)
 		kfree(gt->perf.group);
->>>>>>> vendor/linux-drm-v6.6.35
 
 	idr_for_each(&perf->metrics_idr, destroy_config, perf);
 	idr_destroy(&perf->metrics_idr);

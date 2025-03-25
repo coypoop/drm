@@ -26,18 +26,6 @@ enum {
 	I915_PRIORITY_DISPLAY,
 };
 
-<<<<<<< HEAD
-#define I915_USER_PRIORITY_SHIFT 2
-#define I915_USER_PRIORITY(x) ((x) * (1 << I915_USER_PRIORITY_SHIFT))
-
-#define I915_PRIORITY_COUNT BIT(I915_USER_PRIORITY_SHIFT)
-#define I915_PRIORITY_MASK (I915_PRIORITY_COUNT - 1)
-
-#define I915_PRIORITY_WAIT		((u8)BIT(0))
-#define I915_PRIORITY_NOSEMAPHORE	((u8)BIT(1))
-
-=======
->>>>>>> vendor/linux-drm-v6.6.35
 /* Smallest priority value that cannot be bumped. */
 #define I915_PRIORITY_INVALID (INT_MIN)
 
