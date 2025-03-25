@@ -34,7 +34,7 @@ __KERNEL_RCSID(0, "$NetBSD: qxl_irq.c,v 1.4 2021/12/18 23:45:42 riastradh Exp $"
 
 #include "qxl_drv.h"
 
-static irqreturn_t qxl_irq_handler(int irq, void *arg)
+static irqreturn_t qxl_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	struct qxl_device *qdev = to_qxl(dev);
@@ -101,15 +101,11 @@ int qxl_irq_init(struct qxl_device *qdev)
 	atomic_set(&qdev->irq_received_cursor, 0);
 	atomic_set(&qdev->irq_received_io_cmd, 0);
 	qdev->irq_received_error = 0;
-<<<<<<< HEAD
 #ifdef __NetBSD__
-	ret = drm_irq_install(qdev->ddev);
+	ret = drm_pci_request_irq(ddev, qxl_irq_handler, ddev);
 #else
-	ret = drm_irq_install(&qdev->ddev, qdev->ddev.pdev->irq);
-#endif
-=======
 	ret = request_irq(pdev->irq, qxl_irq_handler, IRQF_SHARED, ddev->driver->name, ddev);
->>>>>>> vendor/linux-drm-v6.6.35
+#endif
 	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed installing irq: %d\n", ret);

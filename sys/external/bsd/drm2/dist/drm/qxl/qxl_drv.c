@@ -298,15 +298,7 @@ static struct drm_driver qxl_driver = {
 	.gem_prime_import_sg_table = qxl_gem_prime_import_sg_table,
 	.fops = &qxl_fops,
 	.ioctls = qxl_ioctls,
-<<<<<<< HEAD
-	.irq_handler = qxl_irq_handler,
-#ifdef __NetBSD__
-	.request_irq = drm_pci_request_irq,
-	.free_irq = drm_pci_free_irq,
-#endif
-=======
 	.num_ioctls = ARRAY_SIZE(qxl_ioctls),
->>>>>>> vendor/linux-drm-v6.6.35
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
