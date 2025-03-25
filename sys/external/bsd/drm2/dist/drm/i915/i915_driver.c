@@ -383,6 +383,8 @@ static int i915_set_dma_info(struct drm_i915_private *i915)
 	unsigned int mask_size = INTEL_INFO(i915)->dma_mask_size;
 	int ret;
 
+	XXX set gmtt->max_paddr or adapt it;
+
 	GEM_BUG_ON(!mask_size);
 
 	/*
