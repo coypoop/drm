@@ -214,7 +214,7 @@ file	external/bsd/drm2/dist/drm/i915/i915_cmd_parser.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_drv.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_gem.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_gem_evict.c	i915drmkms
-file	external/bsd/drm2/dist/drm/i915/i915_gem_fence_reg.c	i915drmkms
+#file	external/bsd/drm2/dist/drm/i915/i915_gem_fence_reg.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_gem_gtt.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_getparam.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_globals.c	i915drmkms
@@ -242,14 +242,14 @@ file	external/bsd/drm2/dist/drm/i915/i915_vma.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_csr.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_device_info.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_memory_region.c	i915drmkms
-file	external/bsd/drm2/dist/drm/i915/intel_pch.c	i915drmkms
+#file	external/bsd/drm2/dist/drm/i915/intel_pch.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_pm.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/intel_region_lmem.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_runtime_pm.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_sideband.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_uncore.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_wakeref.c	i915drmkms
-file	external/bsd/drm2/dist/drm/i915/intel_wopcm.c	i915drmkms
+#file	external/bsd/drm2/dist/drm/i915/intel_wopcm.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/oa/i915_oa_bdw.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/oa/i915_oa_bxt.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/oa/i915_oa_cflgt2.c	i915drmkms
