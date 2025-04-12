@@ -118,7 +118,6 @@ int map_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object 
 	i915_gem_object_make_unshrinkable(obj);
 	return 0;
 }
-#endif
 
 static void clear_vm_list(struct list_head *list)
 {

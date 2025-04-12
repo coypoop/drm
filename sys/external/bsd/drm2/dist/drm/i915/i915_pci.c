@@ -1015,8 +1015,6 @@ bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
 	return true;
 }
 
-#ifndef __NetBSD__
-
 static bool intel_mmio_bar_valid(struct pci_dev *pdev, struct intel_device_info *intel_info)
 {
 	return i915_pci_resource_valid(pdev, intel_mmio_bar(intel_info->__runtime.graphics.ip.ver));
