@@ -61,7 +61,6 @@ __KERNEL_RCSID(0, "$NetBSD: drm_cdevsw.c,v 1.31 2024/04/21 03:02:39 riastradh Ex
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
-#include <drm/drm_irq.h>
 #include <drm/drm_legacy.h>
 
 #include "../dist/drm/drm_internal.h"
