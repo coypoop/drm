@@ -148,6 +148,7 @@ void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 #endif
 }
 
+#ifndef __NetBSD__
 static unsigned int
 intel_vga_set_decode(struct pci_dev *pdev, bool enable_decode)
 {

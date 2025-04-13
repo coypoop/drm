@@ -147,6 +147,7 @@ void intel_gmch_bar_teardown(struct drm_i915_private *i915)
 		release_resource(&i915->gmch.mch_res);
 }
 
+#ifndef __NetBSD__
 int intel_gmch_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 {
 	unsigned int reg = DISPLAY_VER(i915) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
@@ -172,3 +173,4 @@ int intel_gmch_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 
 	return 0;
 }
+#endif
