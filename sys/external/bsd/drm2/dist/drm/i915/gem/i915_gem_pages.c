@@ -217,6 +217,7 @@ static void unmap_object(struct drm_i915_gem_object *obj, void *ptr)
 #else
 	if (is_vmalloc_addr(ptr))
 		vunmap(ptr);
+#endif
 }
 
 static void flush_tlb_invalidate(struct drm_i915_gem_object *obj)

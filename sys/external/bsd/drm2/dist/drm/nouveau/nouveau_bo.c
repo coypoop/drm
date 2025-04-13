@@ -1407,7 +1407,6 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	ttm_bo_move_to_lru_tail_unlocked(bo);
 	return 0;
-#endif
 }
 
 static int

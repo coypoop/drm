@@ -1473,6 +1473,7 @@ unlock:
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
+#endif
 
 static uint32_t drm_fb_helper_find_format(struct drm_fb_helper *fb_helper, const uint32_t *formats,
 					  size_t format_count, uint32_t bpp, uint32_t depth)

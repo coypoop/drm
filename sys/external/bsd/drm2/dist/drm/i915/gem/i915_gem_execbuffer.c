@@ -3394,7 +3394,7 @@ eb_requests_create(struct i915_execbuffer *eb, struct dma_fence *in_fence,
 		 * will have fences inserted inbetween them.
 		 */
 		if (i + 1 == eb->num_batches) {
-#ifef __NetBSD__
+#ifdef __NetBSD__
 			out_fence = eb_fences_add(eb, eb->requests[i],
 						  in_fence, out_fence_fd, fp);
 #else

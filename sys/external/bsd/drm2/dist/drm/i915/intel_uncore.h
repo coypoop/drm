@@ -574,7 +574,7 @@ static inline void __iomem *intel_uncore_regs(struct intel_uncore *uncore)
 {
 #ifdef __NetBSD__
 	return uncore;
-#endif
+#else
 	return uncore->regs;
 #endif
 }
