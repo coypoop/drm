@@ -62,6 +62,7 @@
 #define	oops_in_progress	(panicstr != NULL)
 
 #define	IS_BUILTIN(option)	(1) /* Probably... */
+#define	IS_MODULE(option)	(1) /* Probably... */
 #define	IS_ENABLED(option)	(option)
 #define	IS_REACHABLE(option)	(option)
 

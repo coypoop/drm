@@ -51,6 +51,7 @@ makeoptions	drmkms	"CPPFLAGS.drmkms"+="-DCONFIG_DRM_FBDEV_OVERALLOC=100"
 makeoptions	drmkms	"CPPFLAGS.drmkms"+="-DCONFIG_FB=0"
 makeoptions	drmkms	"CPPFLAGS.drmkms"+="-DCONFIG_LOCKDEP=0"
 makeoptions	drmkms	"CPPFLAGS.drmkms"+="-DCONFIG_PCI=1"
+makeoptions	drmkms	"CPPFLAGS.drmkms"+="-DCONFIG_DRM=1"
 
 makeoptions	drmkms	"CWARNFLAGS.drmkms"+="-Wno-missing-field-initializers"
 
