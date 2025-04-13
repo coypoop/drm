@@ -11,6 +11,8 @@ makeoptions	drmkms		"CWARNFLAGS.ttm_bo.c"+="${CC_WNO_IMPLICIT_FALLTHROUGH}"
 makeoptions	drmkms_ttm	"CPPFLAGS.drmkms_ttm"+="-DCONFIG_AGP=1"
 makeoptions	drmkms_ttm	"CWARNFLAGS.drmkms_ttm"+="-Wno-missing-field-initializers"
 makeoptions	drmkms_ttm	"CWARNFLAGS.drmkms_ttm"+="-Wno-shadow"
+makeoptions	drmkms_ttm	"CPPFLAGS.drmkms_ttm"+="-I$S/external/bsd/drm2/dist/drm/ttm"
+makeoptions	drmkms_ttm	"CPPFLAGS.drmkms_ttm"+="-I$S/external/bsd/drm2/dist/"
 
 file	external/bsd/drm2/ttm/ttm_agp_backend.c			drmkms_ttm
 file	external/bsd/drm2/dist/drm/ttm/ttm_memory.c		drmkms_ttm
