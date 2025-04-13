@@ -211,7 +211,7 @@ file	external/bsd/drm2/dist/drm/i915/gt/uc/intel_uc_fw.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_active.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_buddy.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_cmd_parser.c	i915drmkms
-file	external/bsd/drm2/dist/drm/i915/i915_drv.c	i915drmkms
+#file	external/bsd/drm2/dist/drm/i915/i915_drv.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_gem.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/i915_gem_evict.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/i915_gem_fence_reg.c	i915drmkms

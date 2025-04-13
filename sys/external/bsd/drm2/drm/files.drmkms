@@ -137,10 +137,10 @@ file	external/bsd/drm2/dist/drm/drm_crtc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_crtc_helper.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_damage_helper.c	drmkms
 #file	external/bsd/drm2/dist/drm/drm_dp_dual_mode_helper.c	drmkms
-file	external/bsd/drm2/dist/drm/drm_dp_helper.c	drmkms
+file	external/bsd/drm2/dist/drm/display/drm_dp_helper.c	drmkms
 #file	external/bsd/drm2/dist/drm/drm_dp_mst_topology.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_drv.c	drmkms
-file	external/bsd/drm2/dist/drm/drm_dsc.c	drmkms
+#file	external/bsd/drm2/dist/drm/drm_dsc.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_dumb_buffers.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_edid.c	drmkms
 file	external/bsd/drm2/dist/drm/drm_encoder.c	drmkms
