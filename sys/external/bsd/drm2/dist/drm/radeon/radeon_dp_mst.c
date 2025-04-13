@@ -6,7 +6,7 @@
 __KERNEL_RCSID(0, "$NetBSD: radeon_dp_mst.c,v 1.5 2021/12/19 09:54:57 riastradh Exp $");
 
 #include <drm/drm_debugfs.h>
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_probe_helper.h>

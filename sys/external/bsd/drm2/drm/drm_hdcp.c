@@ -31,7 +31,7 @@ __KERNEL_RCSID(0, "$NetBSD: drm_hdcp.c,v 1.1 2021/12/19 11:49:35 riastradh Exp $
 
 #include <sys/errno.h>
 
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp.h>
 
 bool
 drm_hdcp_check_ksvs_revoked(struct drm_device *dev, u8 *ksvs, u32 ksv_count)

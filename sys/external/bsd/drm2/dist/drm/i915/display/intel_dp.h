@@ -9,7 +9,7 @@
 #define __INTEL_DP_H__
 
 #include <linux/types.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 
 #include <sys/file.h>
 #define	pipe	pipe_drmhack	/* see intel_display.h */
