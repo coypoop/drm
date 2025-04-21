@@ -55,7 +55,7 @@ makeoptions	i915drmkms	"CWARNFLAGS.intel_hdmi.c"+="${${ACTIVE_CC} == clang :? -W
 makeoptions 	i915drmkms 	"CWARNFLAGS.intel_ddi.c"+="${CC_WNO_MAYBE_UNINITIALIZED} ${CC_WNO_IMPLICIT_FALLTHROUGH}"
 makeoptions 	i915drmkms 	"CWARNFLAGS.intel_display.c"+="${CC_WNO_IMPLICIT_FALLTHROUGH}"
 makeoptions 	i915drmkms 	"CWARNFLAGS.intel_dp.c"+="${CC_WNO_STRINGOP_OVERREAD}"
-makeoptions 	i915drmkms 	"CWARNFLAGS.intel_pm.c"+="${CC_WNO_STRINGOP_OVERREAD} ${CC_WNO_STRINGOP_OVERFLOW}"
+#makeoptions 	i915drmkms 	"CWARNFLAGS.intel_pm.c"+="${CC_WNO_STRINGOP_OVERREAD} ${CC_WNO_STRINGOP_OVERFLOW}"
 makeoptions 	i915drmkms 	"CWARNFLAGS.intel_sdvo.c"+="${CC_WNO_IMPLICIT_FALLTHROUGH}"
 makeoptions 	i915drmkms 	"CWARNFLAGS.intel_sprite.c"+="${CC_WNO_MAYBE_UNINITIALIZED}"
 
@@ -244,10 +244,10 @@ file	external/bsd/drm2/dist/drm/i915/intel_csr.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_device_info.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_memory_region.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/intel_pch.c	i915drmkms
-file	external/bsd/drm2/dist/drm/i915/intel_pm.c	i915drmkms
+#file	external/bsd/drm2/dist/drm/i915/intel_pm.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/intel_region_lmem.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_runtime_pm.c	i915drmkms
-file	external/bsd/drm2/dist/drm/i915/intel_sideband.c	i915drmkms
+#file	external/bsd/drm2/dist/drm/i915/intel_sideband.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_uncore.c	i915drmkms
 file	external/bsd/drm2/dist/drm/i915/intel_wakeref.c	i915drmkms
 #file	external/bsd/drm2/dist/drm/i915/intel_wopcm.c	i915drmkms
