@@ -946,6 +946,11 @@ device	iwm: ifnet, arp, wlan, firmload
 attach	iwm at pci
 file	dev/pci/if_iwm.c		iwm
 
+# Intel AX200/201/210/211
+device	iwx: ifnet, arp, wlan, firmload
+attach	iwx at pci
+file	dev/pci/if_iwx.c		iwx
+
 # Workbit NinjaSCSI-32 controllers
 # device declaration in sys/conf/files
 attach	njs at pci with njs_pci
