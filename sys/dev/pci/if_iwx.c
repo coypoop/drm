@@ -93,8 +93,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "bpfilter.h"
-
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -104,9 +102,6 @@
 #include <sys/systm.h>
 #include <sys/endian.h>
 
-#include <sys/refcnt.h>
-#include <sys/task.h>
-#include <machine/bus.h>
 #include <machine/intr.h>
 
 #include <dev/pci/pcireg.h>
@@ -118,18 +113,18 @@
 #endif
 #include <net/if.h>
 #include <net/if_media.h>
+#include <net/if_ether.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
-#include <net80211/ieee80211_priv.h> /* for SEQ_LT */
 #undef DPRINTF /* defined in ieee80211_priv.h */
 
-#define DEVNAME(_s)	((_s)->sc_dev.dv_xname)
+#define DEVNAME(_s)	device_xname((_s)->sc_dev)
 
-#define IC2IFP(_ic_) (&(_ic_)->ic_if)
+#define IC2IFP(_ic_)	((_ic_)->ic_ifp)
+#define nitems(x)	__arraycount(x)
 
 #define le16_to_cpup(_a_) (le16toh(*(const uint16_t *)(_a_)))
 #define le32_to_cpup(_a_) (le32toh(*(const uint32_t *)(_a_)))
@@ -155,6 +150,7 @@ const uint8_t iwx_nvm_channels_8000[] = {
 	149, 153, 157, 161, 165, 169, 173, 177, 181
 };
 
+#if TODO
 static const uint8_t iwx_nvm_channels_uhb[] = {
 	/* 2.4 GHz */
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
@@ -168,6 +164,7 @@ static const uint8_t iwx_nvm_channels_uhb[] = {
 	133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173, 177, 181, 185,
 	189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233
 };
+#endif
 
 #define IWX_NUM_2GHZ_CHANNELS	14
 #define IWX_NUM_5GHZ_CHANNELS	37
@@ -226,7 +223,7 @@ const int iwx_mcs2ridx[] = {
 	IWX_RATE_MCS_14_INDEX,
 	IWX_RATE_MCS_15_INDEX,
 };
-
+#if TODO
 uint8_t	iwx_lookup_cmd_ver(struct iwx_softc *, uint8_t, uint8_t);
 uint8_t	iwx_lookup_notif_ver(struct iwx_softc *, uint8_t, uint8_t);
 int	iwx_is_mimo_ht_plcp(uint8_t);
@@ -248,6 +245,7 @@ int	iwx_firmware_store_section(struct iwx_softc *, enum iwx_ucode_type,
 int	iwx_set_default_calib(struct iwx_softc *, const void *);
 void	iwx_fw_info_free(struct iwx_fw_info *);
 int	iwx_read_firmware(struct iwx_softc *);
+#endif
 uint32_t iwx_prph_addr_mask(struct iwx_softc *);
 uint32_t iwx_read_prph_unlocked(struct iwx_softc *, uint32_t);
 uint32_t iwx_read_prph(struct iwx_softc *, uint32_t);
@@ -257,9 +255,11 @@ uint32_t iwx_read_umac_prph_unlocked(struct iwx_softc *, uint32_t);
 uint32_t iwx_read_umac_prph(struct iwx_softc *, uint32_t);
 void	iwx_write_umac_prph_unlocked(struct iwx_softc *, uint32_t, uint32_t);
 void	iwx_write_umac_prph(struct iwx_softc *, uint32_t, uint32_t);
+#if TODO
 int	iwx_read_mem(struct iwx_softc *, uint32_t, void *, int);
 int	iwx_write_mem(struct iwx_softc *, uint32_t, const void *, int);
 int	iwx_write_mem32(struct iwx_softc *, uint32_t, uint32_t);
+#endif
 int	iwx_poll_bit(struct iwx_softc *, int, uint32_t, uint32_t, int);
 int	iwx_nic_lock(struct iwx_softc *);
 void	iwx_nic_assert_locked(struct iwx_softc *);
@@ -268,6 +268,7 @@ int	iwx_set_bits_mask_prph(struct iwx_softc *, uint32_t, uint32_t,
 	    uint32_t);
 int	iwx_set_bits_prph(struct iwx_softc *, uint32_t, uint32_t);
 int	iwx_clear_bits_prph(struct iwx_softc *, uint32_t, uint32_t);
+#if TODO
 int	iwx_dma_contig_alloc(bus_dma_tag_t, struct iwx_dma_info *, bus_size_t,
 	    bus_size_t);
 void	iwx_dma_contig_free(struct iwx_dma_info *);
@@ -278,13 +279,18 @@ void	iwx_free_rx_ring(struct iwx_softc *, struct iwx_rx_ring *);
 int	iwx_alloc_tx_ring(struct iwx_softc *, struct iwx_tx_ring *, int);
 void	iwx_reset_tx_ring(struct iwx_softc *, struct iwx_tx_ring *);
 void	iwx_free_tx_ring(struct iwx_softc *, struct iwx_tx_ring *);
+#endif
 void	iwx_enable_rfkill_int(struct iwx_softc *);
 int	iwx_check_rfkill(struct iwx_softc *);
+#if TODO
 void	iwx_enable_interrupts(struct iwx_softc *);
 void	iwx_enable_fwload_interrupt(struct iwx_softc *);
+#endif
 void	iwx_restore_interrupts(struct iwx_softc *);
 void	iwx_disable_interrupts(struct iwx_softc *);
+#if TODO
 void	iwx_ict_reset(struct iwx_softc *);
+#endif
 int	iwx_set_hw_ready(struct iwx_softc *);
 int	iwx_prepare_card_hw(struct iwx_softc *);
 int	iwx_force_power_gating(struct iwx_softc *);
@@ -296,6 +302,8 @@ void	iwx_init_msix_hw(struct iwx_softc *);
 void	iwx_conf_msix_hw(struct iwx_softc *, int);
 int	iwx_clear_persistence_bit(struct iwx_softc *);
 int	iwx_start_hw(struct iwx_softc *);
+void	iwx_sw_reset(struct iwx_softc *);
+#if TODO
 void	iwx_stop_device(struct iwx_softc *);
 void	iwx_nic_config(struct iwx_softc *);
 int	iwx_nic_rx_init(struct iwx_softc *);
@@ -349,7 +357,9 @@ int	iwx_send_tx_ant_cfg(struct iwx_softc *, uint8_t);
 int	iwx_send_phy_cfg_cmd(struct iwx_softc *);
 int	iwx_load_ucode_wait_alive(struct iwx_softc *);
 int	iwx_send_dqa_cmd(struct iwx_softc *);
+#endif
 int	iwx_run_init_mvm_ucode(struct iwx_softc *, int);
+#if TODO
 int	iwx_config_ltr(struct iwx_softc *);
 void	iwx_update_rx_desc(struct iwx_softc *, struct iwx_rx_ring *, int);
 int	iwx_rx_addbuf(struct iwx_softc *, int, int);
@@ -469,7 +479,9 @@ int	iwx_set_key(struct ieee80211com *, struct ieee80211_node *,
 void	iwx_setkey_task(void *);
 void	iwx_delete_key(struct ieee80211com *,
 	    struct ieee80211_node *, struct ieee80211_key *);
+#endif
 int	iwx_media_change(struct ifnet *);
+#if TODO
 void	iwx_newstate_task(void *);
 int	iwx_newstate(struct ieee80211com *, enum ieee80211_state, int);
 void	iwx_endscan(struct iwx_softc *);
@@ -487,9 +499,11 @@ void	iwx_mfp_leave(struct iwx_softc *);
 void	iwx_stop(struct ifnet *);
 void	iwx_watchdog(struct ifnet *);
 int	iwx_ioctl(struct ifnet *, u_long, caddr_t);
+#endif
 const char *iwx_desc_lookup(uint32_t);
 void	iwx_nic_error(struct iwx_softc *);
 void	iwx_dump_driver_status(struct iwx_softc *);
+#if 0
 void	iwx_nic_umac_error(struct iwx_softc *);
 int	iwx_detect_duplicate(struct iwx_softc *, struct mbuf *,
 	    struct iwx_rx_mpdu_desc *, struct ieee80211_rxinfo *);
@@ -504,13 +518,15 @@ void	iwx_rx_mpdu_mq(struct iwx_softc *, struct mbuf *, void *, size_t,
 int	iwx_rx_pkt_valid(struct iwx_rx_packet *);
 void	iwx_rx_pkt(struct iwx_softc *, struct iwx_rx_data *,
 	    struct mbuf_list *);
+#endif
 void	iwx_notif_intr(struct iwx_softc *);
 int	iwx_intr(void *);
 int	iwx_intr_msix(void *);
-int	iwx_match(struct device *, void *, void *);
+int	iwx_match(device_t, cfdata_t, void *);
 int	iwx_preinit(struct iwx_softc *);
 void	iwx_attach_hook(struct device *);
 const struct iwx_device_cfg *iwx_find_device_cfg(struct iwx_softc *);
+void	iwx_get_crf_id(struct iwx_softc *);
 void	iwx_attach(struct device *, struct device *, void *);
 void	iwx_init_task(void *);
 int	iwx_activate(struct device *, int);
@@ -521,6 +537,7 @@ int	iwx_wakeup(struct iwx_softc *);
 void	iwx_radiotap_attach(struct iwx_softc *);
 #endif
 
+#if TODO
 uint8_t
 iwx_lookup_cmd_ver(struct iwx_softc *sc, uint8_t grp, uint8_t cmd)
 {
@@ -1653,6 +1670,7 @@ iwx_read_firmware(struct iwx_softc *sc)
 
 	return err;
 }
+#endif
 
 uint32_t
 iwx_prph_addr_mask(struct iwx_softc *sc)
@@ -1719,6 +1737,7 @@ iwx_write_umac_prph(struct iwx_softc *sc, uint32_t addr, uint32_t val)
 	iwx_write_prph(sc, addr + sc->sc_umac_prph_offset, val);
 }
 
+#if TODO
 int
 iwx_read_mem(struct iwx_softc *sc, uint32_t addr, void *buf, int dwords)
 {
@@ -1761,6 +1780,7 @@ iwx_write_mem32(struct iwx_softc *sc, uint32_t addr, uint32_t val)
 {
 	return iwx_write_mem(sc, addr, &val, 1);
 }
+#endif
 
 int
 iwx_poll_bit(struct iwx_softc *sc, int reg, uint32_t bits, uint32_t mask,
@@ -1865,6 +1885,7 @@ iwx_clear_bits_prph(struct iwx_softc *sc, uint32_t reg, uint32_t bits)
 	return iwx_set_bits_mask_prph(sc, reg, 0, ~bits);
 }
 
+#if TODO
 int
 iwx_dma_contig_alloc(bus_dma_tag_t tag, struct iwx_dma_info *dma,
     bus_size_t size, bus_size_t alignment)
@@ -2226,6 +2247,7 @@ iwx_free_tx_ring(struct iwx_softc *sc, struct iwx_tx_ring *ring)
 			bus_dmamap_destroy(sc->sc_dmat, data->map);
 	}
 }
+#endif
 
 void
 iwx_enable_rfkill_int(struct iwx_softc *sc)
@@ -2269,6 +2291,7 @@ iwx_check_rfkill(struct iwx_softc *sc)
 	return rv;
 }
 
+#if TODO
 void
 iwx_enable_interrupts(struct iwx_softc *sc)
 {
@@ -2308,6 +2331,7 @@ iwx_enable_fwload_interrupt(struct iwx_softc *sc)
 		sc->sc_fh_mask = sc->sc_fh_init_mask;
 	}
 }
+#endif
 
 void
 iwx_restore_interrupts(struct iwx_softc *sc)
@@ -2332,6 +2356,7 @@ iwx_disable_interrupts(struct iwx_softc *sc)
 	}
 }
 
+#if TODO
 void
 iwx_ict_reset(struct iwx_softc *sc)
 {
@@ -2353,6 +2378,7 @@ iwx_ict_reset(struct iwx_softc *sc)
 	IWX_WRITE(sc, IWX_CSR_INT, ~0);
 	iwx_enable_interrupts(sc);
 }
+#endif
 
 #define IWX_HW_READY_TIMEOUT 50
 int
@@ -2429,7 +2455,9 @@ iwx_force_power_gating(struct iwx_softc *sc)
 void
 iwx_apm_config(struct iwx_softc *sc)
 {
+#if TODO
 	pcireg_t lctl, cap;
+#endif
 
 	/*
 	 * L0S states have been found to be unstable with our devices
@@ -2438,6 +2466,7 @@ iwx_apm_config(struct iwx_softc *sc)
 	 */
 	IWX_SETBITS(sc, IWX_CSR_GIO_REG, IWX_CSR_GIO_REG_VAL_L0S_DISABLED);
 
+#if TODO
 	lctl = pci_conf_read(sc->sc_pct, sc->sc_pcitag,
 	    sc->sc_cap_off + PCI_PCIE_LCSR);
 	sc->sc_pm_support = !(lctl & PCI_PCIE_LCSR_ASPM_L0S);
@@ -2448,6 +2477,7 @@ iwx_apm_config(struct iwx_softc *sc)
 	    DEVNAME(sc),
 	    (lctl & PCI_PCIE_LCSR_ASPM_L1) ? "En" : "Dis",
 	    sc->sc_ltr_enabled ? "En" : "Dis"));
+#endif
 }
 
 /*
@@ -2748,6 +2778,7 @@ iwx_start_hw(struct iwx_softc *sc)
 	return 0;
 }
 
+#if TODO
 void
 iwx_stop_device(struct iwx_softc *sc)
 {
@@ -4506,16 +4537,21 @@ iwx_load_ucode_wait_alive(struct iwx_softc *sc)
 
 	return 0;
 }
+#endif
 
 int
 iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 {
+#if TODO
 	const int wait_flags = IWX_INIT_COMPLETE;
 	struct iwx_nvm_access_complete_cmd nvm_complete = {};
 	struct iwx_init_extended_cfg_cmd init_cfg = {
 		.init_flags = htole32(IWX_INIT_NVM),
 	};
 	int err, s;
+#else
+	int s;
+#endif
 
 	if ((sc->sc_flags & IWX_FLAG_RFKILL) && !readnvm) {
 		printf("%s: radio is disabled by hardware switch\n",
@@ -4525,17 +4561,20 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 
 	s = splnet();
 	sc->sc_init_complete = 0;
+#if TODO
 	err = iwx_load_ucode_wait_alive(sc);
 	if (err) {
 		printf("%s: failed to load init firmware\n", DEVNAME(sc));
 		splx(s);
 		return err;
 	}
+#endif
 
 	/*
 	 * Send init config command to mark that we are sending NVM
 	 * access commands
 	 */
+#if TODO
 	err = iwx_send_cmd_pdu(sc, IWX_WIDE_ID(IWX_SYSTEM_GROUP,
 	    IWX_INIT_EXTENDED_CFG_CMD), 0, sizeof(init_cfg), &init_cfg);
 	if (err) {
@@ -4559,7 +4598,9 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 			return err;
 		}
 	}
+#endif
 	splx(s);
+#if TODO
 	if (readnvm) {
 		err = iwx_nvm_get(sc);
 		if (err) {
@@ -4571,6 +4612,7 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 			    sc->sc_nvm.hw_addr);
 
 	}
+#endif
 
 	/*
 	 * Only enable the MLD API on MA/BZ devices for now as the API 77
@@ -4585,6 +4627,7 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 	return 0;
 }
 
+#if TODO
 int
 iwx_config_ltr(struct iwx_softc *sc)
 {
@@ -9631,6 +9674,7 @@ iwx_delete_key(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 	iwx_send_cmd_pdu(sc, IWX_ADD_STA_KEY, IWX_CMD_ASYNC, sizeof(cmd), &cmd);
 }
+#endif
 
 int
 iwx_media_change(struct ifnet *ifp)
@@ -9643,12 +9687,15 @@ iwx_media_change(struct ifnet *ifp)
 
 	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) ==
 	    (IFF_UP | IFF_RUNNING)) {
+#if TODO
 		iwx_stop(ifp);
 		err = iwx_init(ifp);
+#endif
 	}
 	return err;
 }
 
+#if TODO
 void
 iwx_newstate_task(void *psc)
 {
@@ -10227,7 +10274,9 @@ iwx_init(struct ifnet *ifp)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int err, generation;
 
+#if TODO
 	rw_assert_wrlock(&sc->ioctl_rwl);
+#endif
 
 	generation = ++sc->sc_generation;
 
@@ -10404,7 +10453,9 @@ iwx_stop(struct ifnet *ifp)
 	struct iwx_node *in = (void *)ic->ic_bss;
 	int i, s = splnet();
 
+#if TODO
 	rw_assert_wrlock(&sc->ioctl_rwl);
+#endif
 
 	sc->sc_flags |= IWX_FLAG_SHUTDOWN; /* Disallow new tasks. */
 
@@ -10521,11 +10572,13 @@ iwx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	 * Prevent processes from entering this function while another
 	 * process is tsleep'ing in it.
 	 */
+#if TODO
 	err = rw_enter(&sc->ioctl_rwl, RW_WRITE | RW_INTR);
 	if (err == 0 && generation != sc->sc_generation) {
 		rw_exit(&sc->ioctl_rwl);
 		return ENXIO;
 	}
+#endif
 	if (err)
 		return err;
 	s = splnet();
@@ -10576,10 +10629,13 @@ iwx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	splx(s);
+#if TODO
 	rw_exit(&sc->ioctl_rwl);
+#endif
 
 	return err;
 }
+#endif
 
 /*
  * Note: This structure is read from the device with IO accesses,
@@ -10663,6 +10719,7 @@ struct iwx_umac_error_event_table {
 #define ERROR_START_OFFSET  (1 * sizeof(uint32_t))
 #define ERROR_ELEM_SIZE     (7 * sizeof(uint32_t))
 
+#if TODO
 void
 iwx_nic_umac_error(struct iwx_softc *sc)
 {
@@ -10710,6 +10767,7 @@ iwx_nic_umac_error(struct iwx_softc *sc)
 	printf("%s: 0x%08X | isr status reg\n", DEVNAME(sc),
 	    table.nic_isr_pref);
 }
+#endif
 
 #define IWX_FW_SYSASSERT_CPU_MASK 0xf0000000
 static struct {
@@ -10762,7 +10820,9 @@ iwx_desc_lookup(uint32_t num)
 void
 iwx_nic_error(struct iwx_softc *sc)
 {
+#if TODO
 	struct iwx_error_event_table table;
+#endif
 	uint32_t base;
 	uint32_t min_base = 0x400000;
 
@@ -10776,12 +10836,11 @@ iwx_nic_error(struct iwx_softc *sc)
 		    DEVNAME(sc), base);
 		return;
 	}
-
+#if TODO
 	if (iwx_read_mem(sc, base, &table, sizeof(table)/sizeof(uint32_t))) {
 		printf("%s: reading errlog failed\n", DEVNAME(sc));
 		return;
 	}
-
 	if (!table.valid) {
 		printf("%s: errlog not found, skipping\n", DEVNAME(sc));
 		return;
@@ -10836,6 +10895,7 @@ iwx_nic_error(struct iwx_softc *sc)
 
 	if (sc->sc_uc.uc_umac_error_event_table)
 		iwx_nic_umac_error(sc);
+#endif
 }
 
 void
@@ -10856,6 +10916,7 @@ iwx_dump_driver_status(struct iwx_softc *sc)
 	    ieee80211_state_name[sc->sc_ic.ic_state]);
 }
 
+#if TODO
 #define SYNC_RESP_STRUCT(_var_, _pkt_)					\
 do {									\
 	bus_dmamap_sync(sc->sc_dmat, data->map, sizeof(*(_pkt_)),	\
@@ -11405,10 +11466,12 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf_list *ml)
 	if (m0 && m0 != data->m)
 		m_freem(m0);
 }
+#endif
 
 void
 iwx_notif_intr(struct iwx_softc *sc)
 {
+#if TODO
 	struct mbuf_list ml = MBUF_LIST_INITIALIZER();
 	uint16_t hw;
 
@@ -11438,14 +11501,17 @@ iwx_notif_intr(struct iwx_softc *sc)
 		    (hw & ~7) | IWX_HBUS_TARG_WRPTR_RX_Q(0));
 	} else
 		IWX_WRITE(sc, IWX_RFH_Q0_FRBDCB_WIDX_TRG, hw & ~7);
+#endif
 }
 
 int
 iwx_intr(void *arg)
 {
 	struct iwx_softc *sc = arg;
+#if TODO
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = IC2IFP(ic);
+#endif
 	int handled = 0;
 	int r1, r2, rv = 0;
 
@@ -11491,25 +11557,30 @@ iwx_intr(void *arg)
 	IWX_WRITE(sc, IWX_CSR_INT, r1 | ~sc->sc_intmask);
 
 	if (r1 & IWX_CSR_INT_BIT_ALIVE) {
+#if TODO
 		int i;
 
 		/* Firmware has now configured the RFH. */
 		for (i = 0; i < IWX_RX_MQ_RING_COUNT; i++)
 			iwx_update_rx_desc(sc, &sc->rxq, i);
 		IWX_WRITE(sc, IWX_RFH_Q0_FRBDCB_WIDX_TRG, 8);
+#endif
 	}
 
 	handled |= (r1 & (IWX_CSR_INT_BIT_ALIVE /*| IWX_CSR_INT_BIT_SCD*/));
 
 	if (r1 & IWX_CSR_INT_BIT_RF_KILL) {
 		handled |= IWX_CSR_INT_BIT_RF_KILL;
+#if TODO
 		iwx_check_rfkill(sc);
 		task_add(systq, &sc->init_task);
+#endif
 		rv = 1;
 		goto out_ena;
 	}
 
 	if (r1 & IWX_CSR_INT_BIT_SW_ERR) {
+#if TODO
 		if (ifp->if_flags & IFF_DEBUG) {
 			iwx_nic_error(sc);
 			iwx_dump_driver_status(sc);
@@ -11517,6 +11588,7 @@ iwx_intr(void *arg)
 		printf("%s: fatal firmware error\n", DEVNAME(sc));
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
+#endif
 		rv = 1;
 		goto out;
 
@@ -11525,10 +11597,12 @@ iwx_intr(void *arg)
 	if (r1 & IWX_CSR_INT_BIT_HW_ERR) {
 		handled |= IWX_CSR_INT_BIT_HW_ERR;
 		printf("%s: hardware error, stopping device \n", DEVNAME(sc));
+#if TODO
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0) {
 			sc->sc_flags |= IWX_FLAG_HW_ERR;
 			task_add(systq, &sc->init_task);
 		}
+#endif
 		rv = 1;
 		goto out;
 	}
@@ -11606,10 +11680,12 @@ iwx_intr_msix(void *arg)
 	}
 
 	if (inta_hw & IWX_MSIX_HW_INT_CAUSES_REG_TOP_FATAL_ERR) {
+#if TODO
 		printf("%s: fatal hardware error\n", DEVNAME(sc));
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
 		return 1;
+#endif
 	}
 
 	if ((inta_fh & IWX_MSIX_FH_INT_CAUSES_FH_ERR) ||
@@ -11620,28 +11696,34 @@ iwx_intr_msix(void *arg)
 			iwx_dump_driver_status(sc);
 		}
 		printf("%s: fatal firmware error\n", DEVNAME(sc));
+#if TODO
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
+#endif
 		return 1;
 	}
 
+#if TODO
 	if (inta_hw & IWX_MSIX_HW_INT_CAUSES_REG_RF_KILL) {
 		iwx_check_rfkill(sc);
 		task_add(systq, &sc->init_task);
 	}
+#endif
 
 	if (inta_hw & IWX_MSIX_HW_INT_CAUSES_REG_HW_ERR) {
 		printf("%s: hardware error, stopping device \n", DEVNAME(sc));
+#if TODO
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0) {
 			sc->sc_flags |= IWX_FLAG_HW_ERR;
 			task_add(systq, &sc->init_task);
 		}
 		return 1;
+#endif
 	}
 
 	if (inta_hw & IWX_MSIX_HW_INT_CAUSES_REG_ALIVE) {
+#if TODO
 		int i;
-
 		/* Firmware has now configured the RFH. */
 		for (i = 0; i < IWX_RX_MQ_RING_COUNT; i++)
 			iwx_update_rx_desc(sc, &sc->rxq, i);
@@ -11650,6 +11732,7 @@ iwx_intr_msix(void *arg)
 			    8 | IWX_HBUS_TARG_WRPTR_RX_Q(0));
 		} else
 			IWX_WRITE(sc, IWX_RFH_Q0_FRBDCB_WIDX_TRG, 8);
+#endif
 	}
 
 	/*
@@ -11664,51 +11747,52 @@ iwx_intr_msix(void *arg)
 	return 1;
 }
 
-typedef void *iwx_match_t;
-
-static const struct pci_matchid iwx_devices[] = {
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_1 },
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_2 },
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_3 },
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_4,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_5,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_6,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_7,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_8,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_9,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_10,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_11,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_12,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_13,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_14,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_15,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_16,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_17,},
-	{ PCI_VENDOR_INTEL, PCI_PRODUCT_INTEL_WL_22500_18,},
+static const pci_product_id_t iwx_devices[] = {
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_1,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_2,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_3,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_4,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_5,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_6,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_7,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_8,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_9,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_10,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_11,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_12,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_13,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_14,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_15,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_16,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_17,
+	PCI_PRODUCT_INTEL_WIFI_LINK_22500_18,
 };
 
 
 int
-iwx_match(struct device *parent, iwx_match_t match __unused, void *aux)
+iwx_match(device_t parent, cfdata_t match __unused, void *aux)
 {
 	struct pci_attach_args *pa = aux;
+#if TODO
 	pcireg_t memtype;
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
 	bus_size_t sz;
 	uint32_t rf_id;
+#endif
 	
-	if (!pci_matchbyid(pa, iwx_devices, nitems(iwx_devices)))
-		return 0;
+        for (size_t i = 0; i < __arraycount(iwx_devices); i++)
+                if (PCI_PRODUCT(pa->pa_id) == iwx_devices[i])
+                        return 1;
 
-	if (PCI_PRODUCT(pa->pa_id) != PCI_PRODUCT_INTEL_WL_22500_18)
+	if (PCI_PRODUCT(pa->pa_id) != PCI_PRODUCT_INTEL_WIFI_LINK_22500_18)
 		return 1;
 
 	/*
 	 * Only match on BZ devices with wifi 6e RF-type GF.
 	 * We do not support wifi 7 BZ devices.
 	 */
-
+#if TODO
 	memtype = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 	if (pci_mapreg_map(pa, PCI_MAPREG_START, memtype, 0,
 	    &st, &sh, NULL, &sz, 0)) {
@@ -11722,6 +11806,7 @@ iwx_match(struct device *parent, iwx_match_t match __unused, void *aux)
 
 	if (IWX_CSR_HW_RFID_TYPE(rf_id) == IWX_CFG_RF_TYPE_GF)
 		return 1;
+#endif
 
 	return 0;
 }
@@ -12117,7 +12202,9 @@ int
 iwx_preinit(struct iwx_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+#if TODO
 	struct ifnet *ifp = IC2IFP(ic);
+#endif
 	int err;
 
 	err = iwx_prepare_card_hw(sc);
@@ -12126,12 +12213,14 @@ iwx_preinit(struct iwx_softc *sc)
 		return err;
 	}
 
+#if TODO
 	if (sc->attached) {
 		/* Update MAC in case the upper layers changed it. */
 		IEEE80211_ADDR_COPY(sc->sc_ic.ic_myaddr,
 		    ((struct arpcom *)ifp)->ac_enaddr);
 		return 0;
 	}
+#endif
 
 	err = iwx_start_hw(sc);
 	if (err) {
@@ -12140,7 +12229,9 @@ iwx_preinit(struct iwx_softc *sc)
 	}
 
 	err = iwx_run_init_mvm_ucode(sc, 1);
+#if TODO
 	iwx_stop_device(sc);
+#endif
 	if (err)
 		return err;
 
@@ -12158,16 +12249,19 @@ iwx_preinit(struct iwx_softc *sc)
 		    sc->sc_fwver, ether_sprintf(sc->sc_nvm.hw_addr));
 	}
 
+#if TODO
 	if (sc->sc_nvm.sku_cap_11n_enable)
 		iwx_setup_ht_rates(sc);
 	if (sc->sc_nvm.sku_cap_11ac_enable)
 		iwx_setup_vht_rates(sc);
+#endif
 
 	/* not all hardware can do 5GHz band */
 	if (!sc->sc_nvm.sku_cap_band_52GHz_enable)
 		memset(&ic->ic_sup_rates[IEEE80211_MODE_11A], 0,
 		    sizeof(ic->ic_sup_rates[IEEE80211_MODE_11A]));
 
+#if TODO
 	/* Configure channel information obtained from firmware. */
 	ieee80211_channel_init(ifp);
 
@@ -12176,8 +12270,9 @@ iwx_preinit(struct iwx_softc *sc)
 	if (err)
 		printf("%s: could not set MAC address (error %d)\n",
 		    DEVNAME(sc), err);
+#endif
 
-	ieee80211_media_init(ifp, iwx_media_change, ieee80211_media_status);
+	ieee80211_media_init(ic, iwx_media_change, ieee80211_media_status);
 
 	return 0;
 }
@@ -12186,9 +12281,9 @@ void
 iwx_attach_hook(struct device *self)
 {
 	struct iwx_softc *sc = (void *)self;
-
+#if TODO
 	KASSERT(!cold);
-
+#endif
 	iwx_preinit(sc);
 }
 
@@ -12310,22 +12405,32 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 {
 	struct iwx_softc *sc = (void *)self;
 	struct pci_attach_args *pa = aux;
+#if TODO
 	pci_intr_handle_t ih;
 	pcireg_t reg, memtype;
+#else
+	pcireg_t reg;
+#endif
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &ic->ic_if;
+	struct ifnet *ifp = IC2IFP(ic);
+#if TODO
 	const char *intrstr;
+#endif
 	const struct iwx_device_cfg *cfg;
 	int err;
+#if TODO
 	int txq_i, i, j;
 	size_t ctxt_info_size;
+#endif
 
 	sc->sc_pid = PCI_PRODUCT(pa->pa_id);
 	sc->sc_pct = pa->pa_pc;
 	sc->sc_pcitag = pa->pa_tag;
 	sc->sc_dmat = pa->pa_dmat;
 
+#if TODO
 	rw_init(&sc->ioctl_rwl, "iwxioctl");
+#endif
 
 	err = pci_get_capability(sc->sc_pct, sc->sc_pcitag,
 	    PCI_CAP_PCIEXPRESS, &sc->sc_cap_off, NULL);
@@ -12342,6 +12447,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, 0x40);
 	pci_conf_write(sc->sc_pct, sc->sc_pcitag, 0x40, reg & ~0xff00);
 
+#if TODO
 	memtype = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 	err = pci_mapreg_map(pa, PCI_MAPREG_START, memtype, 0,
 	    &sc->sc_st, &sc->sc_sh, NULL, &sc->sc_sz, 0);
@@ -12383,6 +12489,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		return;
 	}
 	printf(", %s\n", intrstr);
+#endif
 
 	/* Clear pending interrupts. */
 	IWX_WRITE(sc, IWX_CSR_INT_MASK, 0);
@@ -12402,7 +12509,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 			(IWX_CSR_HW_REV_STEP(sc->sc_hw_rev << 2) << 2);
 
 	switch (PCI_PRODUCT(pa->pa_id)) {
-	case PCI_PRODUCT_INTEL_WL_22500_1:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_1:
 		sc->sc_fwname = IWX_CC_A_FW;
 		sc->sc_device_family = IWX_DEVICE_FAMILY_22000;
 		sc->sc_integrated = 0;
@@ -12412,8 +12519,8 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 0;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_2:
-	case PCI_PRODUCT_INTEL_WL_22500_5:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_2:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_5:
 		/* These devices should be QuZ only. */
 		if (sc->sc_hw_rev != IWX_CSR_HW_REV_TYPE_QUZ) {
 			printf("%s: unsupported AX201 adapter\n", DEVNAME(sc));
@@ -12428,7 +12535,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 0;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_3:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_3:
 		if (sc->sc_hw_rev == IWX_CSR_HW_REV_TYPE_QU_C0)
 			sc->sc_fwname = IWX_QU_C_HR_B_FW;
 		else if (sc->sc_hw_rev == IWX_CSR_HW_REV_TYPE_QUZ) {
@@ -12448,9 +12555,9 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 0;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_4:
-	case PCI_PRODUCT_INTEL_WL_22500_7:
-	case PCI_PRODUCT_INTEL_WL_22500_8:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_4:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_7:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_8:
 		if (sc->sc_hw_rev == IWX_CSR_HW_REV_TYPE_QU_C0)
 			sc->sc_fwname = IWX_QU_C_HR_B_FW;
 		else if (sc->sc_hw_rev == IWX_CSR_HW_REV_TYPE_QUZ)
@@ -12465,7 +12572,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 0;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_6:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_6:
 		if (sc->sc_hw_rev == IWX_CSR_HW_REV_TYPE_QU_C0)
 			sc->sc_fwname = IWX_QU_C_HR_B_FW;
 		else if (sc->sc_hw_rev == IWX_CSR_HW_REV_TYPE_QUZ)
@@ -12480,12 +12587,12 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 0;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_9:
-	case PCI_PRODUCT_INTEL_WL_22500_10:
-	case PCI_PRODUCT_INTEL_WL_22500_11:
-	case PCI_PRODUCT_INTEL_WL_22500_13:
-	case PCI_PRODUCT_INTEL_WL_22500_15:
-	case PCI_PRODUCT_INTEL_WL_22500_16:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_9:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_10:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_11:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_13:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_15:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_16:
 		sc->sc_fwname = IWX_SO_A_GF_A_FW;
 		sc->sc_pnvm_name = IWX_SO_A_GF_A_PNVM;
 		sc->sc_device_family = IWX_DEVICE_FAMILY_AX210;
@@ -12496,8 +12603,8 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 1;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_12:
-	case PCI_PRODUCT_INTEL_WL_22500_17:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_12:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_17:
 		sc->sc_fwname = IWX_SO_A_GF_A_FW;
 		sc->sc_pnvm_name = IWX_SO_A_GF_A_PNVM;
 		sc->sc_device_family = IWX_DEVICE_FAMILY_AX210;
@@ -12509,7 +12616,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_uhb_supported = 0;
 		sc->sc_imr_enabled = 1;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_14:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_14:
 		sc->sc_fwname = IWX_MA_B_GF_A_FW;
 		sc->sc_pnvm_name = IWX_MA_B_GF_A_PNVM;
 		sc->sc_device_family = IWX_DEVICE_FAMILY_AX210;
@@ -12520,7 +12627,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_tx_with_siso_diversity = 0;
 		sc->sc_uhb_supported = 1;
 		break;
-	case PCI_PRODUCT_INTEL_WL_22500_18:
+	case PCI_PRODUCT_INTEL_WIFI_LINK_22500_18:
 		sc->sc_fwname = IWX_BZ_B_GF_A_FW;
 		sc->sc_pnvm_name = IWX_BZ_B_GF_A_PNVM;
 		sc->sc_device_family = IWX_DEVICE_FAMILY_BZ;
@@ -12565,6 +12672,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		iwx_apm_stop(sc);
 	}
 
+#if TODO
 	/* Allocate DMA memory for loading firmware. */
 	if (sc->sc_device_family >= IWX_DEVICE_FAMILY_AX210)
 		ctxt_info_size = sizeof(struct iwx_context_info_gen3);
@@ -12631,11 +12739,13 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_nswq = taskq_create("iwxns", 1, IPL_NET, 0);
 	if (sc->sc_nswq == NULL)
 		goto fail4;
+#endif
 
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
 	ic->ic_state = IEEE80211_S_INIT;
 
+#if TODO
 	/* Set device capabilities. */
 	ic->ic_caps =
 	    IEEE80211_C_QOS | IEEE80211_C_TX_AMPDU | /* A-MPDU */
@@ -12687,21 +12797,27 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	ic->ic_ibss_chan = &ic->ic_channels[1];
 
 	ic->ic_max_rssi = IWX_MAX_DBM - IWX_MIN_DBM;
+#endif
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+#if TODO
 	ifp->if_ioctl = iwx_ioctl;
 	ifp->if_start = iwx_start;
 	ifp->if_watchdog = iwx_watchdog;
+#endif
 	memcpy(ifp->if_xname, DEVNAME(sc), IFNAMSIZ);
 
 	if_attach(ifp);
+#if TODO
 	ieee80211_ifattach(ifp);
-	ieee80211_media_init(ifp, iwx_media_change, ieee80211_media_status);
+#endif
+	ieee80211_media_init(ic, iwx_media_change, ieee80211_media_status);
 
 #if NBPFILTER > 0
 	iwx_radiotap_attach(sc);
 #endif
+#if TODO
 	for (i = 0; i < nitems(sc->sc_rxba_data); i++) {
 		struct iwx_rxba_data *rxba = &sc->sc_rxba_data[i];
 		rxba->baid = IWX_RX_REORDER_DATA_INVALID_BAID;
@@ -12718,7 +12834,9 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	task_set(&sc->mac_ctxt_task, iwx_mac_ctxt_task, sc);
 	task_set(&sc->phy_ctxt_task, iwx_phy_ctxt_task, sc);
 	task_set(&sc->bgscan_done_task, iwx_bgscan_done_task, sc);
+#endif
 
+#if TODO
 	ic->ic_node_alloc = iwx_node_alloc;
 	ic->ic_bgscan_start = iwx_bgscan;
 	ic->ic_bgscan_done = iwx_bgscan_done;
@@ -12737,6 +12855,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	ic->ic_ampdu_rx_stop = iwx_ampdu_rx_stop;
 	ic->ic_ampdu_tx_start = iwx_ampdu_tx_start;
 	ic->ic_ampdu_tx_stop = NULL;
+#endif
 	/*
 	 * We cannot read the MAC address without loading the
 	 * firmware from disk. Postpone until mountroot is done.
@@ -12744,7 +12863,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	config_mountroot(self, iwx_attach_hook);
 
 	return;
-
+#if TODO
 fail4:	while (--txq_i >= 0)
 		iwx_free_tx_ring(sc, &sc->txq[txq_i]);
 	iwx_free_rx_ring(sc, &sc->rxq);
@@ -12755,6 +12874,7 @@ fail1:	iwx_dma_contig_free(&sc->ctxt_info_dma);
 	iwx_dma_contig_free(&sc->prph_scratch_dma);
 	iwx_dma_contig_free(&sc->prph_info_dma);
 	return;
+#endif
 }
 
 #if NBPFILTER > 0
@@ -12777,9 +12897,12 @@ iwx_radiotap_attach(struct iwx_softc *sc)
 void
 iwx_init_task(void *arg1)
 {
+#if TODO
 	struct iwx_softc *sc = arg1;
-	struct ifnet *ifp = &sc->sc_ic.ic_if;
+	struct ifnet *ifp = IC2IFP(&sc->sc_ic);
+#endif
 	int s = splnet();
+#if TODO
 	int generation = sc->sc_generation;
 	int fatal = (sc->sc_flags & (IWX_FLAG_HW_ERR | IWX_FLAG_RFKILL));
 
@@ -12799,6 +12922,7 @@ iwx_init_task(void *arg1)
 		iwx_init(ifp);
 
 	rw_exit(&sc->ioctl_rwl);
+#endif
 	splx(s);
 }
 
@@ -12830,12 +12954,17 @@ iwx_resume(struct iwx_softc *sc)
 int
 iwx_wakeup(struct iwx_softc *sc)
 {
+#if TODO
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &sc->sc_ic.ic_if;
+#endif
+	struct ifnet *ifp = IC2IFP(&sc->sc_ic);
+#if TODO
 	int err;
 
 	rw_enter_write(&sc->ioctl_rwl);
+#endif
 
+#if TODO
 	err = iwx_start_hw(sc);
 	if (err) {
 		rw_exit(&sc->ioctl_rwl);
@@ -12851,24 +12980,30 @@ iwx_wakeup(struct iwx_softc *sc)
 
 	refcnt_init(&sc->task_refs);
 	ifq_clr_oactive(&ifp->if_snd);
+#endif
 	ifp->if_flags |= IFF_RUNNING;
 
+#if TODO
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 	else
 		ieee80211_begin_scan(ifp);
 
 	rw_exit(&sc->ioctl_rwl);
+#endif
 	return 0;
 }
 
 int
 iwx_activate(struct device *self, int act)
 {
+#if TODO
 	struct iwx_softc *sc = (struct iwx_softc *)self;
-	struct ifnet *ifp = &sc->sc_ic.ic_if;
+	struct ifnet *ifp = IC2IFP(&sc->sc_ic);
 	int err = 0;
+#endif
 
+#if TODO
 	switch (act) {
 	case DVACT_QUIESCE:
 		if (ifp->if_flags & IFF_RUNNING) {
@@ -12889,10 +13024,12 @@ iwx_activate(struct device *self, int act)
 		}
 		break;
 	}
+#endif
 
 	return 0;
 }
 
+#if TODO
 struct cfdriver iwx_cd = {
 	NULL, "iwx", DV_IFNET
 };
@@ -12901,3 +13038,7 @@ const struct cfattach iwx_ca = {
 	sizeof(struct iwx_softc), iwx_match, iwx_attach,
 	NULL, iwx_activate
 };
+#else
+CFATTACH_DECL_NEW(iwx, sizeof(struct iwx_softc), iwx_match, iwx_attach,
+        NULL, NULL);
+#endif

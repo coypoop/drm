@@ -8834,9 +8834,9 @@ iwx_cmd_version(uint32_t cmdid)
 }
 
 static inline uint32_t
-iwx_cmd_id(uint8_t opcode, uint8_t groupid, uint8_t version)
+iwx_cmd_id(uint8_t opcode, uint8_t groupid, uint8_t _version)
 {
-	return opcode + (groupid << 8) + (version << 16);
+	return opcode + (groupid << 8) + (_version << 16);
 }
 
 /* make uint16_t wide id out of uint8_t group and opcode */
@@ -8919,6 +8919,7 @@ struct iwx_rx_packet {
 #define	IWX_FH_RSCSR_RXQ_POS		16
 #define	IWX_FH_RSCSR_RXQ_MASK		0x3F0000
 
+#if TODO
 static uint32_t
 iwx_rx_packet_len(const struct iwx_rx_packet *pkt)
 {
@@ -8932,6 +8933,7 @@ iwx_rx_packet_payload_len(const struct iwx_rx_packet *pkt)
 
 	return iwx_rx_packet_len(pkt) - sizeof(pkt->hdr);
 }
+#endif
 
 
 #define IWX_MIN_DBM	-100

@@ -100,7 +100,7 @@ struct iwx_rx_radiotap_header {
 	uint16_t	wr_chan_flags;
 	int8_t		wr_dbm_antsignal;
 	int8_t		wr_dbm_antnoise;
-} __packed;
+};
 
 #define IWX_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_TSFT) |				\
@@ -116,7 +116,7 @@ struct iwx_tx_radiotap_header {
 	uint8_t		wt_rate;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+};
 
 #define IWX_TX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -386,13 +386,17 @@ struct iwx_reorder_buffer {
  * @frames: list of mbufs stored (A-MSDU subframes share a sequence number)
  */
 struct iwx_reorder_buf_entry {
+#ifdef __OpenBSD__
 	struct mbuf_list frames;
+#endif
 	uint32_t rx_pkt_status;
 	int chanidx;
 	int is_shortpre;
 	uint32_t rate_n_flags;
 	uint32_t device_timestamp;
+#ifdef __OpenBSD__
 	struct ieee80211_rxinfo rxi;
+#endif
 };
 
 /**
@@ -415,10 +419,14 @@ struct iwx_rxba_data {
 	uint16_t timeout;
 	uint16_t entries_per_queue;
 	struct timeval last_rx;
+#ifdef __OpenBSD__
 	struct timeout session_timer;
+#endif
 	struct iwx_softc *sc;
 	struct iwx_reorder_buffer reorder_buf;
+#ifdef __OpenBSD__
 	struct iwx_reorder_buf_entry entries[IEEE80211_BA_MAX_WINSZ];
+#endif
 };
 
 static inline struct iwx_rxba_data *
@@ -634,27 +642,33 @@ const struct iwx_device_cfg iwx_cfg_ma_a0_fm_a0 = {
 #define IWX_SUBDEVICE_CORES(subdevice)	((uint16_t)((subdevice) & 0x1c00) >> 10)
 
 struct iwx_softc {
-	struct device sc_dev;
+	device_t sc_dev;
 	struct ieee80211com sc_ic;
 	int (*sc_newstate)(struct ieee80211com *, enum ieee80211_state, int);
 	int sc_newstate_pending;
 	int attached;
 
+#ifdef __OpenBSD__
 	struct task		init_task; /* NB: not reference-counted */
 	struct refcnt		task_refs;
 	struct task		newstate_task;
+#endif
 	enum ieee80211_state	ns_nstate;
 	int			ns_arg;
 
 	int			deauth_sent;
 
 	/* Task for firmware BlockAck setup/teardown and its arguments. */
+#ifdef __OpenBSD__
 	struct task		ba_task;
+#endif
 	struct iwx_ba_task_data	ba_rx;
 	struct iwx_ba_task_data	ba_tx;
 
 	/* Task for setting encryption keys and its arguments. */
+#ifdef __OpenBSD__
 	struct task		setkey_task;
+#endif
 	/*
 	 * At present we need to process at most three keys at once:
 	 * Our pairwise key, a group key, and an integrity group key.
@@ -667,11 +681,13 @@ struct iwx_softc {
 	int setkey_tail;
 	int setkey_nkeys;
 
+#ifdef __OpenBSD__
 	/* Task for ERP/HT prot/slot-time/EDCA updates. */
 	struct task		mac_ctxt_task;
 
 	/* Task for HT 20/40 MHz channel width updates. */
 	struct task		phy_ctxt_task;
+#endif
 
 	bus_space_tag_t sc_st;
 	bus_space_handle_t sc_sh;
@@ -689,7 +705,9 @@ struct iwx_softc {
 	int qfullmsk;
 	int qenablemsk;
 	int first_data_qid;
+#ifdef __OpenBSD__
 	int aggqid[IEEE80211_NUM_TID];
+#endif
 	int max_tfd_queue_size;
 
 	int sc_sf_state;
@@ -757,7 +775,9 @@ struct iwx_softc {
 
 	int sc_generation;
 
+#ifdef __OpenBSD__
 	struct rwlock ioctl_rwl;
+#endif
 
 	int sc_cap_off; /* PCIe caps */
 
@@ -774,7 +794,9 @@ struct iwx_softc {
 	int sc_tx_timer[IWX_NUM_TX_QUEUES];
 	int sc_rx_ba_sessions;
 
+#ifdef __OpenBSD__
 	struct task bgscan_done_task;
+#endif
 	struct ieee80211_node_switch_bss_arg *bgscan_unref_arg;
 	size_t	bgscan_unref_arg_size;
 
