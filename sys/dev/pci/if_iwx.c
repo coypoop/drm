@@ -11823,10 +11823,14 @@ iwx_match(device_t parent, cfdata_t match __unused, void *aux)
 	bus_space_handle_t sh;
 	bus_size_t sz;
 	uint32_t rf_id;
+	size_t i;
 	
-        for (size_t i = 0; i < __arraycount(iwx_devices); i++)
-                if (PCI_PRODUCT(pa->pa_id) == iwx_devices[i])
-                        return 1;
+	for (i = 0; i < __arraycount(iwx_devices); i++)
+		if (PCI_PRODUCT(pa->pa_id) == iwx_devices[i])
+			break;
+
+	if (i == __arraycount(iwx_devices))
+		return 0;
 
 	if (PCI_PRODUCT(pa->pa_id) != PCI_PRODUCT_INTEL_WIFI_LINK_22500_18)
 		return 1;
