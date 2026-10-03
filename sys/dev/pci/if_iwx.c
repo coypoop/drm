@@ -125,6 +125,9 @@
 
 #define IC2IFP(_ic_)	((_ic_)->ic_ifp)
 #define nitems(x)	__arraycount(x)
+#define BUS_DMA_64BIT 0 /* XXX TODO ??? */
+#define BUS_DMA_ZERO 0 /* XXX TODO ??? */
+typedef void *caddr_t;
 
 #define le16_to_cpup(_a_) (le16toh(*(const uint16_t *)(_a_)))
 #define le32_to_cpup(_a_) (le32toh(*(const uint32_t *)(_a_)))
@@ -268,18 +271,20 @@ int	iwx_set_bits_mask_prph(struct iwx_softc *, uint32_t, uint32_t,
 	    uint32_t);
 int	iwx_set_bits_prph(struct iwx_softc *, uint32_t, uint32_t);
 int	iwx_clear_bits_prph(struct iwx_softc *, uint32_t, uint32_t);
-#if TODO
 int	iwx_dma_contig_alloc(bus_dma_tag_t, struct iwx_dma_info *, bus_size_t,
 	    bus_size_t);
 void	iwx_dma_contig_free(struct iwx_dma_info *);
 int	iwx_alloc_rx_ring(struct iwx_softc *, struct iwx_rx_ring *);
+#if TODO
 void	iwx_disable_rx_dma(struct iwx_softc *);
 void	iwx_reset_rx_ring(struct iwx_softc *, struct iwx_rx_ring *);
+#endif
 void	iwx_free_rx_ring(struct iwx_softc *, struct iwx_rx_ring *);
 int	iwx_alloc_tx_ring(struct iwx_softc *, struct iwx_tx_ring *, int);
+#if TODO
 void	iwx_reset_tx_ring(struct iwx_softc *, struct iwx_tx_ring *);
-void	iwx_free_tx_ring(struct iwx_softc *, struct iwx_tx_ring *);
 #endif
+void	iwx_free_tx_ring(struct iwx_softc *, struct iwx_tx_ring *);
 void	iwx_enable_rfkill_int(struct iwx_softc *);
 int	iwx_check_rfkill(struct iwx_softc *);
 #if TODO
@@ -361,8 +366,10 @@ int	iwx_send_dqa_cmd(struct iwx_softc *);
 int	iwx_run_init_mvm_ucode(struct iwx_softc *, int);
 #if TODO
 int	iwx_config_ltr(struct iwx_softc *);
+#endif
 void	iwx_update_rx_desc(struct iwx_softc *, struct iwx_rx_ring *, int);
 int	iwx_rx_addbuf(struct iwx_softc *, int, int);
+#if TODO
 int	iwx_rxmq_get_signal_strength(struct iwx_softc *, struct iwx_rx_mpdu_desc *);
 void	iwx_rx_rx_phy_cmd(struct iwx_softc *, struct iwx_rx_packet *,
 	    struct iwx_rx_data *);
@@ -1885,7 +1892,6 @@ iwx_clear_bits_prph(struct iwx_softc *sc, uint32_t reg, uint32_t bits)
 	return iwx_set_bits_mask_prph(sc, reg, 0, ~bits);
 }
 
-#if TODO
 int
 iwx_dma_contig_alloc(bus_dma_tag_t tag, struct iwx_dma_info *dma,
     bus_size_t size, bus_size_t alignment)
@@ -2021,6 +2027,7 @@ fail:	iwx_free_rx_ring(sc, ring);
 	return err;
 }
 
+#if TODO
 void
 iwx_disable_rx_dma(struct iwx_softc *sc)
 {
@@ -2062,6 +2069,7 @@ iwx_reset_rx_ring(struct iwx_softc *sc, struct iwx_rx_ring *ring)
 	    ring->stat_dma.size, BUS_DMASYNC_POSTWRITE);
 
 }
+#endif
 
 void
 iwx_free_rx_ring(struct iwx_softc *sc, struct iwx_rx_ring *ring)
@@ -2184,6 +2192,7 @@ fail:	iwx_free_tx_ring(sc, ring);
 	return err;
 }
 
+#if TODO
 void
 iwx_reset_tx_ring(struct iwx_softc *sc, struct iwx_tx_ring *ring)
 {
@@ -2223,6 +2232,7 @@ iwx_reset_tx_ring(struct iwx_softc *sc, struct iwx_tx_ring *ring)
 	ring->tail_hw = 0;
 	ring->tid = 0;
 }
+#endif
 
 void
 iwx_free_tx_ring(struct iwx_softc *sc, struct iwx_tx_ring *ring)
@@ -2247,7 +2257,6 @@ iwx_free_tx_ring(struct iwx_softc *sc, struct iwx_tx_ring *ring)
 			bus_dmamap_destroy(sc->sc_dmat, data->map);
 	}
 }
-#endif
 
 void
 iwx_enable_rfkill_int(struct iwx_softc *sc)
@@ -4640,6 +4649,7 @@ iwx_config_ltr(struct iwx_softc *sc)
 
 	return iwx_send_cmd_pdu(sc, IWX_LTR_CONFIG, 0, sizeof(cmd), &cmd);
 }
+#endif
 
 void
 iwx_update_rx_desc(struct iwx_softc *sc, struct iwx_rx_ring *ring, int idx)
@@ -4678,7 +4688,9 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 	if (size <= MCLBYTES) {
 		MCLGET(m, M_DONTWAIT);
 	} else {
+#if TODO
 		MCLGETL(m, M_DONTWAIT, IWX_RBUF_SIZE);
+#endif
 	}
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);
@@ -4709,6 +4721,7 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 	return 0;
 }
 
+#if TODO
 int
 iwx_rxmq_get_signal_strength(struct iwx_softc *sc,
     struct iwx_rx_mpdu_desc *desc)
@@ -11773,13 +11786,11 @@ int
 iwx_match(device_t parent, cfdata_t match __unused, void *aux)
 {
 	struct pci_attach_args *pa = aux;
-#if TODO
 	pcireg_t memtype;
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
 	bus_size_t sz;
 	uint32_t rf_id;
-#endif
 	
         for (size_t i = 0; i < __arraycount(iwx_devices); i++)
                 if (PCI_PRODUCT(pa->pa_id) == iwx_devices[i])
@@ -11792,10 +11803,9 @@ iwx_match(device_t parent, cfdata_t match __unused, void *aux)
 	 * Only match on BZ devices with wifi 6e RF-type GF.
 	 * We do not support wifi 7 BZ devices.
 	 */
-#if TODO
 	memtype = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 	if (pci_mapreg_map(pa, PCI_MAPREG_START, memtype, 0,
-	    &st, &sh, NULL, &sz, 0)) {
+	    &st, &sh, NULL, &sz)) {
 		printf("%s: can't map mem space\n", __func__);
 		return 0;
 	}
@@ -11806,7 +11816,6 @@ iwx_match(device_t parent, cfdata_t match __unused, void *aux)
 
 	if (IWX_CSR_HW_RFID_TYPE(rf_id) == IWX_CFG_RF_TYPE_GF)
 		return 1;
-#endif
 
 	return 0;
 }
@@ -12407,10 +12416,8 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	struct pci_attach_args *pa = aux;
 #if TODO
 	pci_intr_handle_t ih;
-	pcireg_t reg, memtype;
-#else
-	pcireg_t reg;
 #endif
+	pcireg_t reg, memtype;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = IC2IFP(ic);
 #if TODO
@@ -12420,8 +12427,10 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	int err;
 #if TODO
 	int txq_i, i, j;
-	size_t ctxt_info_size;
+#else
+	int txq_i;
 #endif
+	size_t ctxt_info_size;
 
 	sc->sc_pid = PCI_PRODUCT(pa->pa_id);
 	sc->sc_pct = pa->pa_pc;
@@ -12447,15 +12456,15 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, 0x40);
 	pci_conf_write(sc->sc_pct, sc->sc_pcitag, 0x40, reg & ~0xff00);
 
-#if TODO
 	memtype = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 	err = pci_mapreg_map(pa, PCI_MAPREG_START, memtype, 0,
-	    &sc->sc_st, &sc->sc_sh, NULL, &sc->sc_sz, 0);
+	    &sc->sc_st, &sc->sc_sh, NULL, &sc->sc_sz);
 	if (err) {
 		printf("%s: can't map mem space\n", DEVNAME(sc));
 		return;
 	}
 
+#if TODO
 	if (pci_intr_map_msix(pa, 0, &ih) == 0) {
 		sc->sc_msix = 1;
 	} else if (pci_intr_map_msi(pa, &ih)) {
@@ -12672,7 +12681,6 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		iwx_apm_stop(sc);
 	}
 
-#if TODO
 	/* Allocate DMA memory for loading firmware. */
 	if (sc->sc_device_family >= IWX_DEVICE_FAMILY_AX210)
 		ctxt_info_size = sizeof(struct iwx_context_info_gen3);
@@ -12736,6 +12744,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		goto fail4;
 	}
 
+#if TODO
 	sc->sc_nswq = taskq_create("iwxns", 1, IPL_NET, 0);
 	if (sc->sc_nswq == NULL)
 		goto fail4;
@@ -12863,7 +12872,6 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	config_mountroot(self, iwx_attach_hook);
 
 	return;
-#if TODO
 fail4:	while (--txq_i >= 0)
 		iwx_free_tx_ring(sc, &sc->txq[txq_i]);
 	iwx_free_rx_ring(sc, &sc->rxq);
@@ -12874,7 +12882,6 @@ fail1:	iwx_dma_contig_free(&sc->ctxt_info_dma);
 	iwx_dma_contig_free(&sc->prph_scratch_dma);
 	iwx_dma_contig_free(&sc->prph_info_dma);
 	return;
-#endif
 }
 
 #if NBPFILTER > 0
