@@ -8919,7 +8919,6 @@ struct iwx_rx_packet {
 #define	IWX_FH_RSCSR_RXQ_POS		16
 #define	IWX_FH_RSCSR_RXQ_MASK		0x3F0000
 
-#if TODO
 static uint32_t
 iwx_rx_packet_len(const struct iwx_rx_packet *pkt)
 {
@@ -8933,7 +8932,6 @@ iwx_rx_packet_payload_len(const struct iwx_rx_packet *pkt)
 
 	return iwx_rx_packet_len(pkt) - sizeof(pkt->hdr);
 }
-#endif
 
 
 #define IWX_MIN_DBM	-100
