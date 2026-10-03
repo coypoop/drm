@@ -643,6 +643,7 @@ const struct iwx_device_cfg iwx_cfg_ma_a0_fm_a0 = {
 
 struct iwx_softc {
 	device_t sc_dev;
+	struct ethercom sc_ec;
 	struct ieee80211com sc_ic;
 	int (*sc_newstate)(struct ieee80211com *, enum ieee80211_state, int);
 	int sc_newstate_pending;

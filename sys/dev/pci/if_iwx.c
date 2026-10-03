@@ -4690,9 +4690,7 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 	if (size <= MCLBYTES) {
 		MCLGET(m, M_DONTWAIT);
 	} else {
-#if TODO
-		MCLGETL(m, M_DONTWAIT, IWX_RBUF_SIZE);
-#endif
+		MEXTMALLOC(m, size, M_DONTWAIT);
 	}
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);
@@ -12325,7 +12323,7 @@ iwx_preinit(struct iwx_softc *sc)
 void
 iwx_attach_hook(struct device *self)
 {
-	struct iwx_softc *sc = (void *)self;
+	struct iwx_softc *sc = device_private(self);
 #if TODO
 	KASSERT(!cold);
 #endif
@@ -12448,7 +12446,7 @@ iwx_get_crf_id(struct iwx_softc *sc)
 void
 iwx_attach(struct device *parent, struct device *self, void *aux)
 {
-	struct iwx_softc *sc = (void *)self;
+	struct iwx_softc *sc = device_private(self);
 	struct pci_attach_args *pa = aux;
 #if TODO
 	pci_intr_handle_t ih;
@@ -12456,7 +12454,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	pcireg_t reg, memtype;
 	char intrbuf[PCI_INTRSTR_LEN];
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = IC2IFP(ic);
+	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	const char *intrstr;
 	const struct iwx_device_cfg *cfg;
 	int err;
@@ -12468,6 +12466,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 #endif
 	size_t ctxt_info_size;
 
+	sc->sc_dev = self;
 	sc->sc_pid = PCI_PRODUCT(pa->pa_id);
 	sc->sc_pct = pa->pa_pc;
 	sc->sc_pcitag = pa->pa_tag;
@@ -12820,6 +12819,10 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		goto fail4;
 #endif
 
+	/*
+	 * Attach interface
+	 */
+	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
 	ic->ic_state = IEEE80211_S_INIT;
@@ -12887,10 +12890,11 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 #endif
 	memcpy(ifp->if_xname, DEVNAME(sc), IFNAMSIZ);
 
-	if_attach(ifp);
-#if TODO
-	ieee80211_ifattach(ifp);
-#endif
+	if_initialize(ifp);
+	ieee80211_ifattach(ic);
+	/* Use common softint-based if_input */
+	ifp->if_percpuq = if_percpuq_create(ifp);
+	if_register(ifp);
 	ieee80211_media_init(ic, iwx_media_change, ieee80211_media_status);
 
 #if NBPFILTER > 0
@@ -13075,7 +13079,7 @@ int
 iwx_activate(struct device *self, int act)
 {
 #if TODO
-	struct iwx_softc *sc = (struct iwx_softc *)self;
+	struct iwx_softc *sc = device_private(self);
 	struct ifnet *ifp = IC2IFP(&sc->sc_ic);
 	int err = 0;
 #endif
