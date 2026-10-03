@@ -773,11 +773,19 @@ struct iwx_softc {
 	uint32_t sc_fh_mask;
 	uint32_t sc_hw_mask;
 
+	uint32_t sc_fh_pending;
+	uint32_t sc_hw_pending;
+
 	int sc_generation;
 
 #ifdef __OpenBSD__
 	struct rwlock ioctl_rwl;
 #endif
+
+	void *sc_soft_ih;
+	void *sc_soft_msix_ih;
+	kmutex_t sc_intr_lock;
+	pci_intr_handle_t *sc_pihp;
 
 	int sc_cap_off; /* PCIe caps */
 

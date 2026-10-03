@@ -527,6 +527,8 @@ void	iwx_rx_pkt(struct iwx_softc *, struct iwx_rx_data *,
 	    struct mbuf_list *);
 #endif
 void	iwx_notif_intr(struct iwx_softc *);
+static void	iwx_softintr(void *);
+static void	iwx_softintr_msix(void *);
 int	iwx_intr(void *);
 int	iwx_intr_msix(void *);
 int	iwx_match(device_t, cfdata_t, void *);
@@ -11521,12 +11523,26 @@ int
 iwx_intr(void *arg)
 {
 	struct iwx_softc *sc = arg;
+
+	if (sc->sc_msix)
+		return iwx_intr_msix(arg);
+
+	IWX_WRITE(sc, IWX_CSR_INT_MASK, 0);
+	softint_schedule(&sc->sc_soft_ih);
+
+	return 1;
+}
+
+static void
+iwx_softintr(void *arg)
+{
+	struct iwx_softc *sc = arg;
 #if TODO
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = IC2IFP(ic);
 #endif
 	int handled = 0;
-	int r1, r2, rv = 0;
+	int r1, r2;
 
 	IWX_WRITE(sc, IWX_CSR_INT_MASK, 0);
 
@@ -11588,7 +11604,6 @@ iwx_intr(void *arg)
 		iwx_check_rfkill(sc);
 		task_add(systq, &sc->init_task);
 #endif
-		rv = 1;
 		goto out_ena;
 	}
 
@@ -11602,7 +11617,6 @@ iwx_intr(void *arg)
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
 #endif
-		rv = 1;
 		goto out;
 
 	}
@@ -11616,7 +11630,6 @@ iwx_intr(void *arg)
 			task_add(systq, &sc->init_task);
 		}
 #endif
-		rv = 1;
 		goto out;
 	}
 
@@ -11657,22 +11670,17 @@ iwx_intr(void *arg)
 		iwx_notif_intr(sc);
 	}
 
-	rv = 1;
-
  out_ena:
 	iwx_restore_interrupts(sc);
  out:
-	return rv;
+	return;
 }
 
 int
 iwx_intr_msix(void *arg)
 {
 	struct iwx_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = IC2IFP(ic);
 	uint32_t inta_fh, inta_hw;
-	int vector = 0;
 
 	inta_fh = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
 	inta_hw = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
@@ -11680,6 +11688,30 @@ iwx_intr_msix(void *arg)
 	IWX_WRITE(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
 	inta_fh &= sc->sc_fh_mask;
 	inta_hw &= sc->sc_hw_mask;
+	mutex_spin_enter(&sc->sc_intr_lock);
+	sc->sc_fh_pending |= inta_fh;
+	sc->sc_hw_pending |= inta_hw;
+	mutex_spin_exit(&sc->sc_intr_lock);
+	softint_schedule(&sc->sc_soft_msix_ih);
+
+	return 1;
+}
+
+static void
+iwx_softintr_msix(void *arg)
+{
+	struct iwx_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = IC2IFP(ic);
+	uint32_t inta_fh, inta_hw;
+	int vector = 0;
+
+	mutex_spin_enter(&sc->sc_intr_lock);
+	inta_fh = sc->sc_fh_pending;
+	inta_hw = sc->sc_hw_pending;
+	sc->sc_fh_pending = 0;
+	sc->sc_hw_pending = 0;
+	mutex_spin_exit(&sc->sc_intr_lock);
 
 	if (inta_fh & IWX_MSIX_FH_INT_CAUSES_Q0 ||
 	    inta_fh & IWX_MSIX_FH_INT_CAUSES_Q1) {
@@ -11713,7 +11745,7 @@ iwx_intr_msix(void *arg)
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
 #endif
-		return 1;
+		return;
 	}
 
 #if TODO
@@ -11730,7 +11762,7 @@ iwx_intr_msix(void *arg)
 			sc->sc_flags |= IWX_FLAG_HW_ERR;
 			task_add(systq, &sc->init_task);
 		}
-		return 1;
+		return;
 #endif
 	}
 
@@ -11757,7 +11789,7 @@ iwx_intr_msix(void *arg)
 	 * by writing 1 to the bit.
 	 */
 	IWX_WRITE(sc, IWX_CSR_MSIX_AUTOMASK_ST_AD, 1 << vector);
-	return 1;
+	return;
 }
 
 static const pci_product_id_t iwx_devices[] = {
@@ -12418,16 +12450,16 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	pci_intr_handle_t ih;
 #endif
 	pcireg_t reg, memtype;
+	char intrbuf[PCI_INTRSTR_LEN];
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = IC2IFP(ic);
-#if TODO
 	const char *intrstr;
-#endif
 	const struct iwx_device_cfg *cfg;
 	int err;
 #if TODO
 	int txq_i, i, j;
 #else
+	int intr_type;
 	int txq_i;
 #endif
 	size_t ctxt_info_size;
@@ -12498,6 +12530,40 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		return;
 	}
 	printf(", %s\n", intrstr);
+#else
+	/* Install interrupt handler. */
+	err = pci_intr_alloc(pa, &sc->sc_pihp, NULL, 0);
+	if (err) {
+		aprint_error_dev(self, "can't allocate interrupt\n");
+		return;
+	}
+	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG);
+	intr_type = pci_intr_type(sc->sc_pct, sc->sc_pihp[0]);
+	if (intr_type == PCI_INTR_TYPE_INTX)
+		CLR(reg, PCI_COMMAND_INTERRUPT_DISABLE);
+	else
+		SET(reg, PCI_COMMAND_INTERRUPT_DISABLE);
+	pci_conf_write(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG, reg);
+	intrstr = pci_intr_string(sc->sc_pct, sc->sc_pihp[0], intrbuf,
+	    sizeof(intrbuf));
+	sc->sc_ih = pci_intr_establish_xname(sc->sc_pct, sc->sc_pihp[0],
+	    IPL_NET, iwx_intr, sc, device_xname(self));
+	if (sc->sc_ih == NULL) {
+		aprint_error_dev(self, "can't establish interrupt");
+		if (intrstr != NULL)
+			aprint_error(" at %s", intrstr);
+		aprint_error("\n");
+		return;
+	}
+	aprint_normal_dev(self, "interrupting at %s\n", intrstr);
+
+	if (intr_type == PCI_INTR_TYPE_MSIX)
+		sc->sc_msix = true;
+
+	sc->sc_soft_ih = softint_establish(SOFTINT_NET, iwx_softintr, sc);
+	sc->sc_soft_msix_ih = softint_establish(SOFTINT_NET, iwx_softintr_msix, sc);
+	mutex_init(&sc->sc_intr_lock, MUTEX_DEFAULT, SOFTINT_NET);
+	// TODO: disestablish softint, mutex
 #endif
 
 	/* Clear pending interrupts. */
