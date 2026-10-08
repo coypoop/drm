@@ -489,7 +489,11 @@ struct iwx_context_info_gen3 {
 #define IWX_MQ_RX_TABLE_SIZE	512
 
 /* cb size is the exponent */
+#if TODO
 #define IWX_RX_QUEUE_CB_SIZE(x)	((sizeof(x) <= 4) ? (fls(x) - 1) : (flsl(x) - 1))
+#else
+#define IWX_RX_QUEUE_CB_SIZE(x) 0 /* XXX TODO fls?? */
+#endif
 
 /*
  * CSR (control and status registers)

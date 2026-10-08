@@ -646,8 +646,9 @@ struct iwx_softc {
 	struct ethercom sc_ec;
 	struct ieee80211com sc_ic;
 	int (*sc_newstate)(struct ieee80211com *, enum ieee80211_state, int);
-	int sc_newstate_pending;
 	int attached;
+
+	struct workqueue *sc_newstate_wq;
 
 #ifdef __OpenBSD__
 	struct task		init_task; /* NB: not reference-counted */
@@ -818,7 +819,9 @@ struct iwx_softc {
 	size_t sc_cmd_resp_len[IWX_TX_RING_COUNT];
 	int sc_nic_locks;
 
+#ifdef __OpenBSD__
 	struct taskq *sc_nswq;
+#endif
 
 	struct iwx_rx_phy_info sc_last_phy_info;
 	int sc_ampdu_ref;
