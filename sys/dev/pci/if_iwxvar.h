@@ -471,7 +471,6 @@ struct iwx_device_cfg {
 	int 	    low_latency_xtal;
 };
 
-/* Firmware listed here must be available in fw_update(8). */
 #define IWX_CC_A_FW	    	"iwx-cc-a0-77"
 #define IWX_TY_A_GF_A_FW	"iwx-ty-a0-gf-a0-77"
 #define IWX_TY_A_GF_A_PNVM	"iwx-ty-a0-gf-a0.pnvm"
