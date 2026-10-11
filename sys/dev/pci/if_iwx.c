@@ -1030,6 +1030,9 @@ iwx_ctxt_info_init(struct iwx_softc *sc, const struct iwx_fw_sects *fws)
 	rx_cfg->free_rbd_addr = htole64(sc->rxq.free_desc_dma.paddr);
 	rx_cfg->used_rbd_addr = htole64(sc->rxq.used_desc_dma.paddr);
 	rx_cfg->status_wr_ptr = htole64(sc->rxq.stat_dma.paddr);
+	printf("%s:%d: free_rbd_addr=0x%llx\n", __func__, __LINE__, (unsigned long long)sc->rxq.free_desc_dma.paddr);
+	printf("%s:%d: used_rbd_addr=0x%llx\n", __func__, __LINE__, (unsigned long long)sc->rxq.used_desc_dma.paddr);
+	printf("%s:%d: stat_dma_addr=0x%llx\n", __func__, __LINE__, (unsigned long long)sc->rxq.stat_dma.paddr);
 
 	/* initialize TX command queue */
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
@@ -1040,6 +1043,7 @@ iwx_ctxt_info_init(struct iwx_softc *sc, const struct iwx_fw_sects *fws)
 	/* allocate ucode sections in dram and set addresses */
 	err = iwx_init_fw_sec(sc, fws, &ctxt_info->dram);
 	if (err) {
+		printf("iwx ERROR BRANCH %s:%d\n", __func__, __LINE__);
 		iwx_ctxt_info_free_fw_img(sc);
 		return err;
 	}
@@ -1048,6 +1052,7 @@ iwx_ctxt_info_init(struct iwx_softc *sc, const struct iwx_fw_sects *fws)
 	if (sc->sc_fw.dbg_dest_tlv_v1) {
 		err = iwx_apply_debug_destination(sc);
 		if (err) {
+			printf("iwx ERROR BRANCH %s:%d\n", __func__, __LINE__);
 			iwx_ctxt_info_free_fw_img(sc);
 			return err;
 		}
@@ -1064,6 +1069,7 @@ iwx_ctxt_info_init(struct iwx_softc *sc, const struct iwx_fw_sects *fws)
 
 	/* kick FW self load */
 	if (!iwx_nic_lock(sc)) {
+		printf("iwx ERROR BRANCH %s:%d\n", __func__, __LINE__);
 		iwx_ctxt_info_free_fw_img(sc);
 		return EBUSY;
 	}
@@ -4272,6 +4278,10 @@ out:
 int
 iwx_load_firmware(struct iwx_softc *sc)
 { printf("%s\n", __func__);
+	uint32_t r1 = IWX_READ(sc, IWX_CSR_INT);
+	uint32_t r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+	uint32_t r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+	printf("iwx_load_firmware start. register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD%#"PRIx32"\n", r1, r2, r3);
 	struct iwx_fw_sects *fws;
 	int err;
 
@@ -4291,10 +4301,20 @@ iwx_load_firmware(struct iwx_softc *sc)
 		printf("%s: could not init context info\n", DEVNAME(sc));
 		return err;
 	}
+	r1 = IWX_READ(sc, IWX_CSR_INT);
+	r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+	r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+	printf("iwx_load_firmware before tsleep. register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD%#"PRIx32"\n", r1, r2, r3);
 
 	/* wait for the firmware to load */
-	err = tsleep(&sc->sc_uc, 0, "iwxuc", mstohz(1000));
+	err = tsleep(&sc->sc_uc, 0, "iwxuc", mstohz(10000));
 	if (err || !sc->sc_uc.uc_ok) {
+		r1 = IWX_READ(sc, IWX_CSR_INT);
+		r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+		r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+		printf("iwx_load_firmware after tsleep. register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD%#"PRIx32"\n", r1, r2, r3);
+
+
 		printf("%s: could not load firmware, %d\n", DEVNAME(sc), err);
 		iwx_ctxt_info_free_paging(sc);
 	}
@@ -4775,7 +4795,7 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 	/* Wait for the init complete notification from the firmware. */
 	while ((sc->sc_init_complete & wait_flags) != wait_flags) {
 		err = tsleep_nsec(&sc->sc_init_complete, 0, "iwxinit",
-		    SEC_TO_NSEC(2));
+		    mstohz(2000));
 		if (err) {
 			splx(s);
 			return err;
@@ -10054,7 +10074,7 @@ iwx_delete_key(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 int
 iwx_media_change(struct ifnet *ifp)
-{ printf("%s\n", __func__);
+{
 	int err;
 
 	err = ieee80211_media_change(ifp);
@@ -10170,6 +10190,8 @@ out:
 		if (err)
 			task_add(systq, &sc->init_task);
 		else
+#else
+			printf("10task_add(systq, &sc->init_task);\n");
 #endif
 			sc->sc_newstate(ic, nstate, arg);
 	}
@@ -10214,9 +10236,9 @@ iwx_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 #if TODO
 	iwx_add_task(sc, sc->sc_nswq, &sc->newstate_task);
-#elseA
+#else
 	static struct work wk;
-	workqueue_enqueue(sc->newstate_wq, &wk, NULL);
+	workqueue_enqueue(sc->sc_newstate_wq, &wk, NULL);
 #endif
 
 	return 0;
@@ -10735,10 +10757,8 @@ iwx_init(struct ifnet *ifp)
 	 * Wait until the transition to SCAN state has completed.
 	 */
 	do {
-#if TODO
-		err = tsleep_nsec(&ic->ic_state, PCATCH, "iwxinit",
-		    SEC_TO_NSEC(1));
-#endif
+		err = tsleep(&ic->ic_state, PCATCH, "iwxinit",
+		    mstohz(1000));
 		if (generation != sc->sc_generation)
 			return ENXIO;
 		if (err) {
@@ -10871,10 +10891,8 @@ iwx_mfp_leave(struct iwx_softc *sc)
 		return;
 	}
 
-#if TODO
-	if (tsleep_nsec(&sc->deauth_sent, 0, "iwxlv", MSEC_TO_NSEC(500)) != 0)
+	if (tsleep(&sc->deauth_sent, 0, "iwxlv", mstohz(500)) != 0)
 		ni->ni_unref_cb = NULL;
-#endif
 }
 #endif
 
@@ -10995,6 +11013,8 @@ iwx_watchdog(struct ifnet *ifp)
 #if TODO
 				if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 					task_add(systq, &sc->init_task);
+#else
+				printf("11task_add(systq, &sc->init_task);\n");
 #endif
 				if_statinc(ifp, if_oerrors);
 				return;
@@ -11008,7 +11028,7 @@ iwx_watchdog(struct ifnet *ifp)
 
 int
 iwx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-{ printf("%s\n", __func__);
+{
 	struct iwx_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 #if TODO
@@ -11620,6 +11640,8 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf_list *ml)
 			sc->sc_flags |= IWX_FLAG_HW_ERR;
 #if TODO
 			task_add(systq, &sc->init_task);
+#else
+			printf("1task_add(systq, &sc->init_task);\n");
 #endif
 			break;
 		}
@@ -11802,6 +11824,9 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf_list *ml)
 #if TODO
 			if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 				task_add(systq, &sc->init_task);
+#else
+			if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
+				printf("2task_add(systq, &sc->init_task);\n");
 #endif
 			break;
 		}
@@ -11979,12 +12004,17 @@ int
 iwx_intr(void *arg)
 { printf("%s\n", __func__);
 	struct iwx_softc *sc = arg;
+	uint32_t r1 = IWX_READ(sc, IWX_CSR_INT);
+	uint32_t r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+	uint32_t r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+	printf("iwx_intr. register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD%#"PRIx32"\n", r1, r2, r3);
+
 
 	if (sc->sc_msix)
 		return iwx_intr_msix(arg);
 
 	IWX_WRITE(sc, IWX_CSR_INT_MASK, 0);
-	softint_schedule(&sc->sc_soft_ih);
+	softint_schedule(sc->sc_soft_ih);
 
 	return 1;
 }
@@ -12059,6 +12089,8 @@ iwx_softintr(void *arg)
 #if TODO
 		iwx_check_rfkill(sc);
 		task_add(systq, &sc->init_task);
+#else
+		printf("3task_add(systq, &sc->init_task);\n");
 #endif
 		goto out_ena;
 	}
@@ -12072,6 +12104,9 @@ iwx_softintr(void *arg)
 		printf("%s: fatal firmware error\n", DEVNAME(sc));
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
+#else
+		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
+			printf("4task_add(systq, &sc->init_task);\n");
 #endif
 		goto out;
 
@@ -12085,6 +12120,9 @@ iwx_softintr(void *arg)
 			sc->sc_flags |= IWX_FLAG_HW_ERR;
 			task_add(systq, &sc->init_task);
 		}
+#else
+		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
+			printf("5task_add(systq, &sc->init_task);\n");
 #endif
 		goto out;
 	}
@@ -12148,7 +12186,7 @@ iwx_intr_msix(void *arg)
 	sc->sc_fh_pending |= inta_fh;
 	sc->sc_hw_pending |= inta_hw;
 	mutex_spin_exit(&sc->sc_intr_lock);
-	softint_schedule(&sc->sc_soft_msix_ih);
+	softint_schedule(sc->sc_soft_msix_ih);
 
 	return 1;
 }
@@ -12186,6 +12224,9 @@ iwx_softintr_msix(void *arg)
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
 		return 1;
+#else
+		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
+			printf("6task_add(systq, &sc->init_task);\n");
 #endif
 	}
 
@@ -12200,6 +12241,9 @@ iwx_softintr_msix(void *arg)
 #if TODO
 		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
 			task_add(systq, &sc->init_task);
+#else
+		if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0)
+			printf("7task_add(systq, &sc->init_task);\n");
 #endif
 		return;
 	}
@@ -12208,6 +12252,10 @@ iwx_softintr_msix(void *arg)
 	if (inta_hw & IWX_MSIX_HW_INT_CAUSES_REG_RF_KILL) {
 		iwx_check_rfkill(sc);
 		task_add(systq, &sc->init_task);
+	}
+#else
+	if (inta_hw & IWX_MSIX_HW_INT_CAUSES_REG_RF_KILL) {
+		printf("8task_add(systq, &sc->init_task);\n");
 	}
 #endif
 
@@ -12219,6 +12267,12 @@ iwx_softintr_msix(void *arg)
 			task_add(systq, &sc->init_task);
 		}
 		return;
+#else
+                if ((sc->sc_flags & IWX_FLAG_SHUTDOWN) == 0) {
+                        sc->sc_flags |= IWX_FLAG_HW_ERR;
+			printf("9task_add(systq, &sc->init_task);\n");
+                }
+                return;
 #endif
 	}
 
@@ -12952,6 +13006,11 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, 0x40);
 	pci_conf_write(sc->sc_pct, sc->sc_pcitag, 0x40, reg & ~0xff00);
 
+	/* Enable bus-mastering */
+	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG);
+	reg |= PCI_COMMAND_MASTER_ENABLE;
+	pci_conf_write(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG, reg);
+
 	memtype = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 	err = pci_mapreg_map(pa, PCI_MAPREG_START, memtype, 0,
 	    &sc->sc_st, &sc->sc_sh, NULL, &sc->sc_sz);
@@ -13001,13 +13060,17 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 		aprint_error_dev(self, "can't allocate interrupt\n");
 		return;
 	}
-	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG);
 	intr_type = pci_intr_type(sc->sc_pct, sc->sc_pihp[0]);
+#if 1
+	if (intr_type != PCI_INTR_TYPE_INTX) {
+	reg = pci_conf_read(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG);
 	if (intr_type == PCI_INTR_TYPE_INTX)
 		CLR(reg, PCI_COMMAND_INTERRUPT_DISABLE);
 	else
-		SET(reg, PCI_COMMAND_INTERRUPT_DISABLE);
+		CLR(reg, PCI_COMMAND_INTERRUPT_DISABLE);
 	pci_conf_write(sc->sc_pct, sc->sc_pcitag, PCI_COMMAND_STATUS_REG, reg);
+	}
+#endif
 	intrstr = pci_intr_string(sc->sc_pct, sc->sc_pihp[0], intrbuf,
 	    sizeof(intrbuf));
 	sc->sc_ih = pci_intr_establish_xname(sc->sc_pct, sc->sc_pihp[0],
@@ -13021,8 +13084,10 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	}
 	aprint_normal_dev(self, "interrupting at %s\n", intrstr);
 
-	if (intr_type == PCI_INTR_TYPE_MSIX)
+	if (intr_type == PCI_INTR_TYPE_MSIX) {
+		printf("iwx sc->sc_msix = 1, intr_type %d\n", intr_type);
 		sc->sc_msix = true;
+	}
 
 	sc->sc_soft_ih = softint_establish(SOFTINT_NET, iwx_softintr, sc);
 	sc->sc_soft_msix_ih = softint_establish(SOFTINT_NET, iwx_softintr_msix, sc);
