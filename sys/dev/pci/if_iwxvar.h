@@ -694,6 +694,7 @@ struct iwx_softc {
 	bus_space_handle_t sc_sh;
 	bus_size_t sc_sz;
 	bus_dma_tag_t sc_dmat;
+	bus_dma_tag_t sc_dmat32;
 	pci_product_id_t sc_pid;
 	pci_chipset_tag_t sc_pct;
 	pcitag_t sc_pcitag;

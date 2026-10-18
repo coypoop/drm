@@ -2536,7 +2536,12 @@ iwx_ict_reset(struct iwx_softc *sc)
 	iwx_disable_interrupts(sc);
 
 	memset(sc->ict_dma.vaddr, 0, IWX_ICT_SIZE);
+	bus_dmamap_sync(sc->ict_dma.tag, sc->ict_dma.map, 0, sc->ict_dma.size,
+	    BUS_DMASYNC_PREWRITE);
 	sc->ict_cur = 0;
+
+	/* XXXYYY print sc->ict_dma.paddr */
+	printf("%s:%d: sc->ict_dma.paddr: %lx\n", __func__, __LINE__, sc->ict_dma.paddr);
 
 	/* Set physical address of ICT (4KB aligned). */
 	IWX_WRITE(sc, IWX_CSR_DRAM_INT_TBL_REG,
@@ -2544,6 +2549,8 @@ iwx_ict_reset(struct iwx_softc *sc)
 	    | IWX_CSR_DRAM_INIT_TBL_WRAP_CHECK
 	    | IWX_CSR_DRAM_INIT_TBL_WRITE_POINTER
 	    | sc->ict_dma.paddr >> IWX_ICT_PADDR_SHIFT);
+	/* XXXYYY print IWX_READ(sc, IWX_CSR_DRAM_INT_TBL_REG) */
+	printf("%s:%d: IWX_CSR_DRAM_INT_TBL_REG = %"PRIx32"\n", __func__, __LINE__, IWX_READ(sc, IWX_CSR_DRAM_INT_TBL_REG));
 
 	/* Switch to ICT interrupt mode in driver. */
 	sc->sc_flags |= IWX_FLAG_USE_ICT;
@@ -4308,6 +4315,12 @@ iwx_load_firmware(struct iwx_softc *sc)
 		printf("%s: could not init context info\n", DEVNAME(sc));
 		return err;
 	}
+
+	r1 = IWX_READ(sc, IWX_CSR_INT_MASK);
+	r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_MASK_AD);
+	r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_MASK_AD);
+	printf("%s:%d register values:\n\tIWX_CSR_INT_MASK:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_MASK_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_MASK_AD:%#"PRIx32"\n", __func__, __LINE__, r1, r2, r3);
+
 	r1 = IWX_READ(sc, IWX_CSR_INT);
 	r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
 	r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
@@ -4315,6 +4328,12 @@ iwx_load_firmware(struct iwx_softc *sc)
 
 	/* wait for the firmware to load */
 	err = tsleep(&sc->sc_uc, 0, "iwxuc", mstohz(10000));
+
+	r1 = IWX_READ(sc, IWX_CSR_INT);
+	r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+	r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+	printf("iwx_load_firmware after tsleep. register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD%#"PRIx32"\n", r1, r2, r3);
+
 	if (err || !sc->sc_uc.uc_ok) {
 		r1 = IWX_READ(sc, IWX_CSR_INT);
 		r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
@@ -4785,6 +4804,7 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 	err = iwx_send_cmd_pdu(sc, IWX_WIDE_ID(IWX_SYSTEM_GROUP,
 	    IWX_INIT_EXTENDED_CFG_CMD), 0, sizeof(init_cfg), &init_cfg);
 	if (err) {
+		printf("%s:%d failed to send cmd pdu err %d\n", __func__, __LINE__, err);
 		splx(s);
 		return err;
 	}
@@ -4792,6 +4812,7 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 	err = iwx_send_cmd_pdu(sc, IWX_WIDE_ID(IWX_REGULATORY_AND_NVM_GROUP,
 	    IWX_NVM_ACCESS_COMPLETE), 0, sizeof(nvm_complete), &nvm_complete);
 	if (err) {
+		printf("%s:%d failed to send cmd pdu err %d\n", __func__, __LINE__, err);
 		splx(s);
 		return err;
 	}
@@ -4801,6 +4822,7 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 		err = tsleep(&sc->sc_init_complete, 0, "iwxinit",
 		    mstohz(2000));
 		if (err) {
+			printf("%s:%d failed to tsleep err %d\n", __func__, __LINE__, err);
 			splx(s);
 			return err;
 		}
@@ -4846,7 +4868,7 @@ iwx_config_ltr(struct iwx_softc *sc)
 
 void
 iwx_update_rx_desc(struct iwx_softc *sc, struct iwx_rx_ring *ring, int idx)
-{ printf("%s\n", __func__);
+{
 	struct iwx_rx_data *data = &ring->data[idx];
 
 	if (sc->sc_device_family >= IWX_DEVICE_FAMILY_AX210) {
@@ -4867,7 +4889,7 @@ iwx_update_rx_desc(struct iwx_softc *sc, struct iwx_rx_ring *ring, int idx)
 
 int
 iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
-{ printf("%s\n", __func__);
+{
 	struct iwx_rx_ring *ring = &sc->rxq;
 	struct iwx_rx_data *data = &ring->data[idx];
 	struct mbuf *m;
@@ -6104,9 +6126,7 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 	int idx, code, async, group_id;
 	size_t hdrlen, datasz;
 	uint8_t *data;
-#if TODO
 	int generation = sc->sc_generation;
-#endif
 
 	code = hcmd->id;
 	async = hcmd->flags & IWX_CMD_ASYNC;
@@ -6125,14 +6145,15 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 		KASSERT(hcmd->resp_pkt_len <= IWX_CMD_RESP_MAX);
 		if (sc->sc_cmd_resp_pkt[idx] != NULL)
 			return ENOSPC;
-		resp_buf = malloc(hcmd->resp_pkt_len, M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
+		resp_buf = kmem_zalloc(hcmd->resp_pkt_len,
+		    KM_NOSLEEP);
 		if (resp_buf == NULL)
 			return ENOMEM;
 		sc->sc_cmd_resp_pkt[idx] = resp_buf;
 		sc->sc_cmd_resp_len[idx] = hcmd->resp_pkt_len;
 	} else {
 		sc->sc_cmd_resp_pkt[idx] = NULL;
+		sc->sc_cmd_resp_pkt[idx] = 0;
 	}
 
 	s = splnet();
@@ -6159,6 +6180,7 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 	datasz = sizeof(cmd->data_wide);
 
 	if (paylen > datasz) {
+		printf("%s:%d: THIS SHOULD BE UNREACHABLE\n", __func__, __LINE__);
 		/* Command is too large to fit in pre-allocated space. */
 		size_t totlen = hdrlen + paylen;
 		if (paylen > IWX_MAX_CMD_PAYLOAD_SIZE) {
@@ -6176,7 +6198,7 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 		}
 		MCLAIM(m, &sc->sc_ec.ec_tx_mowner);
 		MEXTMALLOC(m, totlen, M_DONTWAIT);
-		if (m == NULL) {
+		if (!(m->m_flags & M_EXT)) {
 			printf("%s: could not get fw cmd mbuf (%zd bytes)\n",
 			    DEVNAME(sc), totlen);
 			err = ENOMEM;
@@ -6196,6 +6218,8 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 	} else {
 		cmd = &ring->cmd[idx];
 		paddr = txdata->cmd_paddr;
+		/* XXXYYY printf paddr */
+		printf("%s:%d paddr = %lx\n", __func__, __LINE__, paddr);
 	}
 
 	memset(cmd, 0, sizeof(*cmd));
@@ -6217,8 +6241,11 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 
 	desc->tbs[0].tb_len = htole16(MIN(hdrlen + paylen, IWX_FIRST_TB_SIZE));
 	addr = htole64(paddr);
+	/* XXXYYY print paddr, le16toh(desc->tbs[0].tb_len */
+	printf("%s:%d paddr %lx le16tohdesc->tbs[0].tb_len) %x \n", __func__, __LINE__, paddr, letoh16(desc->tbs[0].tb_len));
 	memcpy(&desc->tbs[0].addr, &addr, sizeof(addr));
 	if (hdrlen + paylen > IWX_FIRST_TB_SIZE) {
+		printf("%s:%d: THIS SHOULD BE UNREACHABLE\n", __func__, __LINE__);
 		desc->tbs[1].tb_len = htole16(hdrlen + paylen -
 		    IWX_FIRST_TB_SIZE);
 		addr = htole64(paddr + IWX_FIRST_TB_SIZE);
@@ -6228,6 +6255,7 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 		desc->num_tbs = htole16(1);
 
 	if (paylen > datasz) {
+		printf("%s:%d: THIS SHOULD BE UNREACHABLE\n", __func__, __LINE__);
 		bus_dmamap_sync(sc->sc_dmat, txdata->map, 0,
 		    hdrlen + paylen, BUS_DMASYNC_PREWRITE);
 	} else {
@@ -6243,14 +6271,28 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 	ring->queued++;
 	ring->cur = (ring->cur + 1) % IWX_TX_RING_COUNT;
 	ring->cur_hw = (ring->cur_hw + 1) % sc->max_tfd_queue_size;
+	/* XXXYYY print ring->queued, ring->cur, ring->cur_hw, sc->max_tfd_queue_size, ring->qid */
+	printf("%s:%d ring->queued %llx ring->cur %llx ring->cur_hw %llx, sc->max_tfd_queue_size %llx ring->qid %llx\n",
+		__func__, __LINE__,
+		(unsigned long long) ring->queued, (unsigned long long) ring->cur, (unsigned long long) ring->cur_hw, (unsigned long long) sc->max_tfd_queue_size, (unsigned long long) ring->qid);
 	IWX_WRITE(sc, IWX_HBUS_TARG_WRPTR, ring->qid << 16 | ring->cur_hw);
+	/* XXXYYY print IWX_READ(sc, IWX_HBUS_TARG_WRPTR) */
+	printf("%s:%d IWX_READ(sc, IWX_HBUS_TARG_WRPTR) %llx\n", __func__, __LINE__, (unsigned long long) IWX_READ(sc, IWX_HBUS_TARG_WRPTR));
 
-#if TODO
 	if (!async) {
-		err = tsleep_nsec(desc, PCATCH, "iwxcmd", SEC_TO_NSEC(1));
+		uint32_t r1 = IWX_READ(sc, IWX_CSR_INT);
+		uint32_t r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+		uint32_t r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+		printf("%s:%d before tsleep register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD:%#"PRIx32"\n", __func__, __LINE__, r1, r2, r3);
+		err = tsleep(desc, PCATCH, "iwxcmd", mstohz(1000));
+		r1 = IWX_READ(sc, IWX_CSR_INT);
+		r2 = IWX_READ(sc, IWX_CSR_MSIX_FH_INT_CAUSES_AD);
+		r3 = IWX_READ(sc, IWX_CSR_MSIX_HW_INT_CAUSES_AD);
+		printf("%s:%d after tsleep register values:\n\tIWX_CSR_INT:%#"PRIx32"\n\tIWX_CSR_MSIX_FH_INT_CAUSES_AD:%#"PRIx32"\n\tIWX_CSR_MSIX_HW_INT_CAUSES_AD:%#"PRIx32"\n", __func__, __LINE__, r1, r2, r3);
 		if (err == 0) {
 			/* if hardware is no longer up, return error */
 			if (generation != sc->sc_generation) {
+				printf("%s:%d hw is no longer up, generation %d sc->sc_generation %d\n", __func__, __LINE__, generation, sc->sc_generation);
 				err = ENXIO;
 				goto out;
 			}
@@ -6259,12 +6301,12 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 			hcmd->resp_pkt = (void *)sc->sc_cmd_resp_pkt[idx];
 			sc->sc_cmd_resp_pkt[idx] = NULL;
 		} else if (generation == sc->sc_generation) {
-			free(sc->sc_cmd_resp_pkt[idx], M_DEVBUF,
-			    sc->sc_cmd_resp_len[idx]);
+			if (sc->sc_cmd_resp_pkt[idx] != NULL)
+				kmem_free(sc->sc_cmd_resp_pkt[idx],
+				    sc->sc_cmd_resp_len[idx]);
 			sc->sc_cmd_resp_pkt[idx] = NULL;
 		}
 	}
-#endif
  out:
 	splx(s);
 
@@ -10950,9 +10992,7 @@ iwx_stop(struct ifnet *ifp)
 
 	sc->sc_generation++;
 	for (i = 0; i < nitems(sc->sc_cmd_resp_pkt); i++) {
-#if TODO
-		free(sc->sc_cmd_resp_pkt[i], M_DEVBUF, sc->sc_cmd_resp_len[i]);
-#endif
+		kmem_free(sc->sc_cmd_resp_pkt[i], sc->sc_cmd_resp_len[i]);
 		sc->sc_cmd_resp_pkt[i] = NULL;
 		sc->sc_cmd_resp_len[i] = 0;
 	}
@@ -12029,8 +12069,6 @@ iwx_softintr(void *arg)
 	int handled = 0;
 	int r1, r2;
 
-	IWX_WRITE(sc, IWX_CSR_INT_MASK, 0);
-
 	printf("%s:%d: sc_flags=0x%x\n", __func__, __LINE__, sc->sc_flags);
 	if (sc->sc_flags & IWX_FLAG_USE_ICT) {
 		printf("%s:%d: use ict\n", __func__, __LINE__);
@@ -12981,10 +13019,13 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_pid = PCI_PRODUCT(pa->pa_id);
 	sc->sc_pct = pa->pa_pc;
 	sc->sc_pcitag = pa->pa_tag;
-        if (pci_dma64_available(pa))
+	/* XXXYYY print if dmat64 */
+        if (pci_dma64_available(pa)) {
+		printf("%s:%d dma64 available\n", __func__, __LINE__);
                 sc->sc_dmat = pa->pa_dmat64;
-        else
-                sc->sc_dmat = pa->pa_dmat;
+	} else
+		sc->sc_dmat = pa->pa_dmat;
+	sc->sc_dmat32 = pa->pa_dmat;
 
 #if TODO
 	rw_init(&sc->ioctl_rwl, "iwxioctl");
@@ -13317,7 +13358,7 @@ iwx_attach(struct device *parent, struct device *self, void *aux)
 	}
 
 	/* Allocate interrupt cause table (ICT).*/
-	err = iwx_dma_contig_alloc(sc->sc_dmat, &sc->ict_dma,
+	err = iwx_dma_contig_alloc(sc->sc_dmat32, &sc->ict_dma,
 	    IWX_ICT_SIZE, 1<<IWX_ICT_PADDR_SHIFT);
 	if (err) {
 		printf("%s: could not allocate ICT table\n", DEVNAME(sc));
@@ -13518,18 +13559,19 @@ iwx_radiotap_attach(struct iwx_softc *sc)
 void
 iwx_init_task(void *arg1)
 { printf("%s\n", __func__);
-#if TODO
 	struct iwx_softc *sc = arg1;
 	struct ifnet *ifp = IC2IFP(&sc->sc_ic);
-#endif
 	int s = splnet();
-#if TODO
 	int generation = sc->sc_generation;
 	int fatal = (sc->sc_flags & (IWX_FLAG_HW_ERR | IWX_FLAG_RFKILL));
 
+#if TODO
 	rw_enter_write(&sc->ioctl_rwl);
+#endif
 	if (generation != sc->sc_generation) {
+#if TODO
 		rw_exit(&sc->ioctl_rwl);
+#endif
 		splx(s);
 		return;
 	}
@@ -13542,6 +13584,7 @@ iwx_init_task(void *arg1)
 	if (!fatal && (ifp->if_flags & (IFF_UP | IFF_RUNNING)) == IFF_UP)
 		iwx_init(ifp);
 
+#if TODO
 	rw_exit(&sc->ioctl_rwl);
 #endif
 	splx(s);
