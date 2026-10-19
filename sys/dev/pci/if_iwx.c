@@ -110,6 +110,8 @@
 #include <dev/pci/pcidevs.h>
 #include <dev/firmload.h>
 
+#include <x86/bus_private.h>
+
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #endif
@@ -131,8 +133,8 @@
 #define BUS_DMA_ZERO 0 /* XXX TODO ??? */
 typedef void *caddr_t;
 
-#define le16_to_cpup(_a_) (le16toh(*(const uint16_t *)(_a_)))
-#define le32_to_cpup(_a_) (le32toh(*(const uint32_t *)(_a_)))
+#define le16_to_cpup(_a_) le16dec(_a_)
+#define le32_to_cpup(_a_) le32dec(_a_)
 
 #define	IWX_DEBUG
 #ifdef IWX_DEBUG
@@ -153,8 +155,8 @@ struct mbuf_list {
 	struct mbuf	*ml_tail;
 	u_int		ml_len; 
 };
-#define letoh16		htole16
-#define letoh32		htole32
+#define letoh16		le16toh
+#define letoh32		le32toh
 
 static const u_int8_t etheranyaddr[ETHER_ADDR_LEN] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -2096,6 +2098,7 @@ iwx_dma_contig_alloc(bus_dma_tag_t tag, struct iwx_dma_info *dma,
 	if (err)
 		goto fail;
 
+	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *) dma->map->_dm_cookie)->id_flags);
 	bus_dmamap_sync(tag, dma->map, 0, size, BUS_DMASYNC_PREWRITE);
 	dma->paddr = dma->map->dm_segs[0].ds_addr;
 
@@ -4925,6 +4928,7 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 		m_freem(m);
 		return err;
 	}
+	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *)data->map->_dm_cookie)->id_flags);
 	data->m = m;
 	bus_dmamap_sync(sc->sc_dmat, data->map, 0, size, BUS_DMASYNC_PREREAD);
 
@@ -6213,6 +6217,7 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 			m_freem(m);
 			goto out;
 		}
+		printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *)txdata->map->_dm_cookie)->id_flags);
 		txdata->m = m; /* mbuf will be freed in iwx_cmd_done() */
 		paddr = txdata->map->dm_segs[0].ds_addr;
 	} else {
@@ -6763,6 +6768,7 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			return err;
 		}
 	}
+	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *)data->map->_dm_cookie)->id_flags);
 	data->m = m;
 	data->in = in;
 
