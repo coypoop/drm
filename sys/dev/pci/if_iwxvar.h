@@ -653,6 +653,8 @@ struct iwx_softc {
 	struct task		init_task; /* NB: not reference-counted */
 	struct refcnt		task_refs;
 	struct task		newstate_task;
+#else
+	pool_cache_t		sc_rxbufpc;
 #endif
 	enum ieee80211_state	ns_nstate;
 	int			ns_arg;

@@ -386,6 +386,8 @@ int	iwx_send_dqa_cmd(struct iwx_softc *);
 int	iwx_run_init_mvm_ucode(struct iwx_softc *, int);
 int	iwx_config_ltr(struct iwx_softc *);
 void	iwx_update_rx_desc(struct iwx_softc *, struct iwx_rx_ring *, int);
+static void	iwx_rxbuf_dtor(void *, void *);
+static int	iwx_rxbuf_ctor(void *, void *, int);
 int	iwx_rx_addbuf(struct iwx_softc *, int, int);
 int	iwx_rxmq_get_signal_strength(struct iwx_softc *, struct iwx_rx_mpdu_desc *);
 void	iwx_rx_rx_phy_cmd(struct iwx_softc *, struct iwx_rx_packet *,
@@ -2130,6 +2132,10 @@ iwx_alloc_rx_ring(struct iwx_softc *sc, struct iwx_rx_ring *ring)
 { printf("%s\n", __func__);
 	bus_size_t size;
 	int i, err;
+
+	sc->sc_rxbufpc = pool_cache_init(IWX_RBUF_SIZE, PAGE_SIZE, 0, 0, "iwx_rxbufpc", NULL, IPL_NET, iwx_rxbuf_ctor, iwx_rxbuf_dtor, sc);
+	pool_cache_prime(sc->sc_rxbufpc, IWX_RX_MQ_RING_COUNT);
+	/* XXX destroy */
 
 	ring->cur = 0;
 
@@ -4882,6 +4888,8 @@ iwx_update_rx_desc(struct iwx_softc *sc, struct iwx_rx_ring *ring, int idx)
 		    idx * sizeof(*desc), sizeof(*desc),
 		    BUS_DMASYNC_PREWRITE);
 	} else {
+		KASSERTMSG((data->map->dm_segs[0].ds_addr & 0xfff) == 0,
+		    "addr=0x%"PRIxBUSADDR, data->map->dm_segs[0].ds_addr);
 		((uint64_t *)ring->desc)[idx] =
 		    htole64(data->map->dm_segs[0].ds_addr | (idx & 0x0fff));
 		bus_dmamap_sync(sc->sc_dmat, ring->free_desc_dma.map,
@@ -4890,12 +4898,85 @@ iwx_update_rx_desc(struct iwx_softc *sc, struct iwx_rx_ring *ring, int idx)
 	}
 }
 
+struct iwx_rxbuf {
+	struct iwx_softc	*sc;
+	bus_dma_segment_t	seg;
+	void			*kva;
+};
+
+static int
+iwx_rxbuf_ctor(void *cookie, void *vbuf, int flags)
+{
+	const unsigned rbuf_align = 0x1000; /* XXX may vary by device */
+	struct iwx_softc *sc = cookie;
+	struct iwx_rxbuf *rxbuf = vbuf;
+	int nsegs = 0;
+	int error;
+	int dma_flags;
+
+	switch (flags & (PR_NOWAIT|PR_WAITOK)) {
+	case PR_NOWAIT:
+		dma_flags = BUS_DMA_NOWAIT;
+		break;
+	case PR_WAITOK:
+		dma_flags = BUS_DMA_WAITOK;
+		break;
+	default:
+		__unreachable();
+	}
+
+	rxbuf->kva = NULL;
+
+	error = bus_dmamem_alloc(sc->sc_dmat, IWX_RBUF_SIZE, rbuf_align, 0,
+	    &rxbuf->seg, 1, &nsegs, dma_flags);
+	if (error)
+		goto out;
+	KASSERT(nsegs == 1);
+	error = bus_dmamem_map(sc->sc_dmat, &rxbuf->seg, 1, IWX_RBUF_SIZE,
+	    &rxbuf->kva, dma_flags);
+	if (error)
+		goto out;
+
+	rxbuf->sc = sc;
+
+out:	if (error) {
+		if (rxbuf->kva) {
+			bus_dmamem_unmap(sc->sc_dmat, rxbuf->kva,
+			    IWX_RBUF_SIZE);
+		}
+		if (nsegs)
+			bus_dmamem_free(sc->sc_dmat, &rxbuf->seg, 1);
+	}
+	return error;
+}
+
+static void
+iwx_rxbuf_dtor(void *cookie, void *vbuf)
+{
+	struct iwx_softc *sc = cookie;
+	struct iwx_rxbuf *rxbuf = vbuf;
+
+	bus_dmamem_unmap(sc->sc_dmat, rxbuf->kva, IWX_RBUF_SIZE);
+	bus_dmamem_free(sc->sc_dmat, &rxbuf->seg, 1);
+}
+
+static void
+iwx_rxbuf_mfree(struct mbuf *m, void *kva, size_t size, void *cookie)
+{
+	struct iwx_rxbuf *rxbuf = cookie;
+	struct iwx_softc *sc = rxbuf->sc;
+
+	pool_cache_put(sc->sc_rxbufpc, rxbuf);
+	pool_cache_put(mb_cache, m);
+}
+
 int
 iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 {
 	struct iwx_rx_ring *ring = &sc->rxq;
 	struct iwx_rx_data *data = &ring->data[idx];
 	struct mbuf *m;
+	struct iwx_rxbuf *rxbuf;
 	int err;
 	int fatal = 0;
 
@@ -4903,15 +4984,13 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 	if (m == NULL)
 		return ENOBUFS;
 
-	if (size <= MCLBYTES) {
-		MCLGET(m, M_DONTWAIT);
-	} else {
-		MEXTMALLOC(m, size, M_DONTWAIT);
-	}
-	if ((m->m_flags & M_EXT) == 0) {
+	KASSERT(size == IWX_RBUF_SIZE);
+	rxbuf = pool_cache_get(sc->sc_rxbufpc, PR_NOWAIT);
+	if (rxbuf == NULL) {
 		m_freem(m);
 		return ENOBUFS;
 	}
+	MEXTADD(m, rxbuf->kva, IWX_RBUF_SIZE, 0, iwx_rxbuf_mfree, rxbuf);
 
 	if (data->m != NULL) {
 		bus_dmamap_unload(sc->sc_dmat, data->map);
