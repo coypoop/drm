@@ -2100,7 +2100,7 @@ iwx_dma_contig_alloc(bus_dma_tag_t tag, struct iwx_dma_info *dma,
 	if (err)
 		goto fail;
 
-	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *) dma->map->_dm_cookie)->id_flags);
+	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, dma->map->_dm_cookie ? ((struct x86_bus_dma_cookie *) dma->map->_dm_cookie)->id_flags : 0 );
 	bus_dmamap_sync(tag, dma->map, 0, size, BUS_DMASYNC_PREWRITE);
 	dma->paddr = dma->map->dm_segs[0].ds_addr;
 
@@ -5007,7 +5007,7 @@ iwx_rx_addbuf(struct iwx_softc *sc, int size, int idx)
 		m_freem(m);
 		return err;
 	}
-	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *)data->map->_dm_cookie)->id_flags);
+	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, data->map->_dm_cookie ? ((struct x86_bus_dma_cookie *)data->map->_dm_cookie)->id_flags : 0);
 	data->m = m;
 	bus_dmamap_sync(sc->sc_dmat, data->map, 0, size, BUS_DMASYNC_PREREAD);
 
@@ -6296,7 +6296,7 @@ iwx_send_cmd(struct iwx_softc *sc, struct iwx_host_cmd *hcmd)
 			m_freem(m);
 			goto out;
 		}
-		printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *)txdata->map->_dm_cookie)->id_flags);
+		printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, txdata->map->_dm_cookie ? ((struct x86_bus_dma_cookie *)txdata->map->_dm_cookie)->id_flags : 0);
 		txdata->m = m; /* mbuf will be freed in iwx_cmd_done() */
 		paddr = txdata->map->dm_segs[0].ds_addr;
 	} else {
@@ -6847,7 +6847,7 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			return err;
 		}
 	}
-	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, ((struct x86_bus_dma_cookie *)data->map->_dm_cookie)->id_flags);
+	printf("%s:%d: bus_dmamap_load flags=0x%x\n", __func__, __LINE__, data->map->_dm_cookie ? ((struct x86_bus_dma_cookie *)data->map->_dm_cookie)->id_flags: 0 );
 	data->m = m;
 	data->in = in;
 
